@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ---------------------------------------------------------
+    // HELPER FUNCTIONS
+    // ---------------------------------------------------------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      // Check if the user document exists and has role == 'admin'
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ---------------------------------------------------------
+    // USERS
+    // ---------------------------------------------------------
+    match /users/{userId} {
+      // Users can read/write their own profile. Admins can do anything.
+      allow read, write: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+
+    // ---------------------------------------------------------
+    // STORIES & EPISODES
+    // ---------------------------------------------------------
+    match /stories/{storyId} {
+      // Public can read published stories. Admins can read all.
+      // (Note: Flutter app must explicitly query where('isPublished', '==', true))
+      allow read: if (resource != null && (resource.data.isPublished == true || resource.data.status == 'published')) || isAdmin();
+      
+      // Allow creation if Admin
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+      
+      match /episodes/{episodeId} {
+        allow read: if (resource != null && (resource.data.isPublished == true || resource.data.status == 'published')) || isAdmin();
+        allow write: if isAdmin();
+      }
+    }
+
+    // ---------------------------------------------------------
+    // ADVERTISEMENTS
+    // ---------------------------------------------------------
+    match /advertisements/{adId} {
+      allow read: if (resource != null && resource.data.isActive == true) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // DEFAULT DENY
+    // ---------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

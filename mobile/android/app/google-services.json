@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "754804931190",
+    "project_id": "storyverse-465bd",
+    "storage_bucket": "storyverse-465bd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:754804931190:android:004a529d618a93a36f7d57",
+        "android_client_info": {
+          "package_name": "com.example.storyverse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEVq0EpdikrAa-m-SqgcX_0pvALhzwlSY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

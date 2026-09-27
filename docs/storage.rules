@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check admin by verifying the firestore user document.
+    // Note: Storage rules require 'firestore.get' to access Firestore data.
+    function isAdmin() {
+      return isAuthenticated() && 
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Public read for all media. Admin only write.
+    match /stories/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /episodes/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /ads/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
