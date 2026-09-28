@@ -12,6 +12,9 @@ class EpisodeModel {
   final int views;
   final String status;
   final bool isPublished;
+  final String? mediaType;
+  final String? sourceType;
+  final String? storagePath;
   final DateTime? publishedAt;
   final DateTime? createdAt;
 
@@ -27,6 +30,9 @@ class EpisodeModel {
     required this.views,
     required this.status,
     this.isPublished = true,
+    this.mediaType,
+    this.sourceType,
+    this.storagePath,
     this.publishedAt,
     this.createdAt,
   });
@@ -45,6 +51,9 @@ class EpisodeModel {
       views: data['views']?.toInt() ?? 0,
       status: data['status'] ?? 'draft',
       isPublished: data['isPublished'] ?? (data['status'] == 'published'),
+      mediaType: data['mediaType'],
+      sourceType: data['sourceType'],
+      storagePath: data['storagePath'],
       publishedAt: (data['publishedAt'] as Timestamp?)?.toDate(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
@@ -63,6 +72,9 @@ class EpisodeModel {
       views: data['views']?.toInt() ?? 0,
       status: data['status'] ?? 'draft',
       isPublished: data['isPublished'] ?? (data['status'] == 'published'),
+      mediaType: data['mediaType'],
+      sourceType: data['sourceType'],
+      storagePath: data['storagePath'],
       publishedAt: data['publishedAt'] is Timestamp
           ? (data['publishedAt'] as Timestamp).toDate()
           : null,
@@ -84,6 +96,9 @@ class EpisodeModel {
       'views': views,
       'status': status,
       'isPublished': isPublished,
+      'mediaType': mediaType,
+      'sourceType': sourceType,
+      'storagePath': storagePath,
       'publishedAt': publishedAt != null
           ? Timestamp.fromDate(publishedAt!)
           : FieldValue.serverTimestamp(),

@@ -1,12 +1,33 @@
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { LayoutDashboard, BookOpen, Users, LogOut, Settings } from 'lucide-react';
 
 export default function Layout() {
   const { user, role } = useAuth();
   const navigate = useNavigate();
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [storyCount, setStoryCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // We only care about counts here, but since other parts of the app listen to these collections,
+    // they will likely hit local cache heavily, making this cheap.
+    const unsubUsers = onSnapshot(query(collection(db, 'users')), (snapshot) => {
+      setUserCount(snapshot.size);
+    });
+    
+    const unsubStories = onSnapshot(query(collection(db, 'stories')), (snapshot) => {
+      setStoryCount(snapshot.size);
+    });
+
+    return () => {
+      unsubUsers();
+      unsubStories();
+    };
+  }, []);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -38,13 +59,23 @@ export default function Layout() {
               <LayoutDashboard size={20} />
               <span className="font-label-lg font-medium">Dashboard</span>
             </NavLink>
-            <NavLink to="/stories" className={({isActive}) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive ? 'bg-primary-container text-on-primary-container' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'}`}>
-              <BookOpen size={20} />
-              <span className="font-label-lg font-medium">Stories</span>
+            <NavLink to="/stories" className={({isActive}) => `flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${isActive ? 'bg-primary-container text-on-primary-container' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'}`}>
+              <div className="flex items-center gap-3">
+                <BookOpen size={20} />
+                <span className="font-label-lg font-medium">Stories</span>
+              </div>
+              {storyCount !== null && (
+                <span className="text-xs font-bold bg-surface-container-highest px-2 py-0.5 rounded-full text-on-surface-variant">{storyCount}</span>
+              )}
             </NavLink>
-            <NavLink to="/users" className={({isActive}) => `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive ? 'bg-primary-container text-on-primary-container' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'}`}>
-              <Users size={20} />
-              <span className="font-label-lg font-medium">Users</span>
+            <NavLink to="/users" className={({isActive}) => `flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${isActive ? 'bg-primary-container text-on-primary-container' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'}`}>
+              <div className="flex items-center gap-3">
+                <Users size={20} />
+                <span className="font-label-lg font-medium">Users</span>
+              </div>
+              {userCount !== null && (
+                <span className="text-xs font-bold bg-surface-container-highest px-2 py-0.5 rounded-full text-on-surface-variant">{userCount}</span>
+              )}
             </NavLink>
           </nav>
         </div>

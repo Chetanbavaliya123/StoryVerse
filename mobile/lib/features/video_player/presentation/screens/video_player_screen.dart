@@ -74,10 +74,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     }
   }
 
-  Future<void> _initializePlayer(String videoUrl, int? startPosition) async {
+  Future<void> _initializePlayer(String rawVideoUrl, int? startPosition) async {
     _controller?.dispose();
 
-    if (videoUrl.contains('youtube.com') || videoUrl.contains('youtu.be')) {
+    String videoUrl = rawVideoUrl;
+    String provider = 'direct/supabase';
+
+    if (videoUrl.contains('drive.google.com')) {
+      provider = 'google_drive';
+      final driveMatch = RegExp(r'\/file\/d\/([a-zA-Z0-9_-]+)').firstMatch(videoUrl);
+      if (driveMatch != null && driveMatch.group(1) != null) {
+        videoUrl = 'https://drive.google.com/uc?export=download&id=${driveMatch.group(1)}';
+      }
+    } else if (videoUrl.contains('youtube.com') || videoUrl.contains('youtu.be')) {
+      provider = 'youtube';
       if (mounted) {
         setState(() { 
           _hasError = true; 
@@ -110,13 +120,24 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         setState(() { _isLoading = false; });
       }
     } catch (e) {
-      print('PLAYER ERROR\\nEpisode: \${widget.episodeId}\\nURL: $videoUrl\\nError: $e');
+      assert(() {
+        print('================ VIDEO PLAYER DIAGNOSTIC ================');
+        print('Provider: $provider');
+        print('Original URL: $rawVideoUrl');
+        print('Normalized URL: $videoUrl');
+        print('Error: $e');
+        print('=======================================================');
+        return true;
+      }());
+
       if (mounted) {
         setState(() { 
           _hasError = true; 
           _isLoading = false;
           if (e is TimeoutException) {
             _errorMessage = 'Video is taking too long to load.';
+          } else if (provider == 'google_drive') {
+            _errorMessage = 'Unable to play this Google Drive video. It may be private, restricted, or exceeded sharing limits.';
           } else {
             _errorMessage = 'Unable to play this episode.';
           }

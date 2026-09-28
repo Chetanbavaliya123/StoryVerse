@@ -550,8 +550,9 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                             progressAsync.when(
                                               data: (history) {
                                                 if (history == null ||
-                                                    history.percentage <= 0)
+                                                    history.percentage <= 0) {
                                                   return const SizedBox.shrink();
+                                                }
                                                 return Row(
                                                   children: [
                                                     SizedBox(

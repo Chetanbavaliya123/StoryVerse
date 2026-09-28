@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -33,7 +33,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           if (userDoc && userDoc.exists()) {
             setRole(userDoc.data().role || 'admin');
+            // Update lastLoginAt for existing user
+            try {
+              await updateDoc(doc(db, 'users', user.uid), {
+                lastLoginAt: serverTimestamp()
+              });
+            } catch (updateErr) {
+              console.error("Could not update lastLoginAt:", updateErr);
+            }
           } else {
+            // Create the user document if it doesn't exist
+            try {
+              await setDoc(doc(db, 'users', user.uid), {
+                email: user.email,
+                role: 'admin',
+                createdAt: serverTimestamp(),
+                lastLoginAt: serverTimestamp()
+              });
+            } catch (err) {
+              console.error("Could not create user document:", err);
+            }
             setRole('admin');
           }
         } catch (error) {

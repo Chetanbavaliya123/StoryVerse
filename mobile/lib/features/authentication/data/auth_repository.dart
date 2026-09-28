@@ -21,10 +21,29 @@ class AuthRepository {
     String email,
     String password,
   ) async {
-    return await _auth.signInWithEmailAndPassword(
+    final userCredential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
+    
+    final user = userCredential.user;
+    if (user != null) {
+      print('AUTH LOGIN SUCCESS\nuid: ${user.uid}\nemail: ${user.email}');
+      final userRef = _firestore.collection('users').doc(user.uid);
+      print('UPDATING LOGIN TIMESTAMP\ncollection: users\ndocument: ${user.uid}\nfield: lastLoginAt');
+      try {
+        await userRef.set({
+          'uid': user.uid,
+          'email': user.email,
+          'lastLoginAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        print('LOGIN TIMESTAMP UPDATE SUCCESS\nuid: ${user.uid}');
+      } catch (e, stackTrace) {
+        print('LOGIN TIMESTAMP UPDATE FAILED\nuid: ${user.uid}\nerror: $e\nstackTrace: $stackTrace');
+      }
+    }
+    
+    return userCredential;
   }
 
   Future<UserCredential> createUserWithEmailAndPassword(
@@ -38,13 +57,20 @@ class AuthRepository {
     final user = userCredential.user;
 
     if (user != null) {
-      // Create user document in Firestore
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'email': user.email,
-        'createdAt': FieldValue.serverTimestamp(),
-        'role': 'user', // default role
-      });
+      print('AUTH LOGIN SUCCESS\nuid: ${user.uid}\nemail: ${user.email}');
+      print('UPDATING LOGIN TIMESTAMP\ncollection: users\ndocument: ${user.uid}\nfield: lastLoginAt');
+      try {
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'email': user.email,
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLoginAt': FieldValue.serverTimestamp(),
+          'role': 'user',
+        }, SetOptions(merge: true));
+        print('LOGIN TIMESTAMP UPDATE SUCCESS\nuid: ${user.uid}');
+      } catch (e, stackTrace) {
+        print('LOGIN TIMESTAMP UPDATE FAILED\nuid: ${user.uid}\nerror: $e\nstackTrace: $stackTrace');
+      }
     }
 
     return userCredential;
@@ -71,19 +97,21 @@ class AuthRepository {
       final user = userCredential.user;
 
       if (user != null) {
-        final userDoc = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (!userDoc.exists) {
-          await _firestore.collection('users').doc(user.uid).set({
+        print('AUTH LOGIN SUCCESS\nuid: ${user.uid}\nemail: ${user.email}');
+        final userRef = _firestore.collection('users').doc(user.uid);
+        print('UPDATING LOGIN TIMESTAMP\ncollection: users\ndocument: ${user.uid}\nfield: lastLoginAt');
+        try {
+          await userRef.set({
             'uid': user.uid,
             'name': user.displayName ?? '',
             'email': user.email,
             'photoUrl': user.photoURL,
-            'createdAt': FieldValue.serverTimestamp(),
+            'lastLoginAt': FieldValue.serverTimestamp(),
             'role': 'user',
-          });
+          }, SetOptions(merge: true));
+          print('LOGIN TIMESTAMP UPDATE SUCCESS\nuid: ${user.uid}');
+        } catch (e, stackTrace) {
+          print('LOGIN TIMESTAMP UPDATE FAILED\nuid: ${user.uid}\nerror: $e\nstackTrace: $stackTrace');
         }
       }
       return userCredential;
