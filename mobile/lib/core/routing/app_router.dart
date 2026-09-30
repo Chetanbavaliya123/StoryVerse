@@ -30,6 +30,37 @@ final GlobalKey<NavigatorState> _searchNavigatorKey = GlobalKey<NavigatorState>(
 final GlobalKey<NavigatorState> _libraryNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'library');
 final GlobalKey<NavigatorState> _profileNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'profile');
 
+CustomTransitionPage _buildPageWithTransition({
+  required BuildContext context, 
+  required GoRouterState state, 
+  required Widget child,
+  bool slideUp = false,
+}) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: child,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      if (slideUp) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.0, 0.05),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+          child: FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+        );
+      }
+      return FadeTransition(
+        opacity: CurveTween(curve: Curves.easeOutCubic).animate(animation),
+        child: child,
+      );
+    },
+    transitionDuration: const Duration(milliseconds: 250),
+  );
+}
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
 
@@ -94,18 +125,28 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/story/:id',
         name: 'storyDetails',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final storyId = state.pathParameters['id']!;
-          return StoryDetailsScreen(storyId: storyId);
+          return _buildPageWithTransition(
+            context: context, 
+            state: state, 
+            child: StoryDetailsScreen(storyId: storyId),
+            slideUp: true,
+          );
         },
         routes: [
           GoRoute(
             parentNavigatorKey: _rootNavigatorKey,
             path: 'episodes',
             name: 'episodes',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final storyId = state.pathParameters['id']!;
-              return EpisodesScreen(storyId: storyId);
+              return _buildPageWithTransition(
+                context: context, 
+                state: state, 
+                child: EpisodesScreen(storyId: storyId),
+                slideUp: true,
+              );
             },
           ),
         ],
@@ -114,10 +155,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/player/:storyId/:episodeId',
         name: 'videoPlayer',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final storyId = state.pathParameters['storyId']!;
           final episodeId = state.pathParameters['episodeId']!;
-          return VideoPlayerScreen(storyId: storyId, episodeId: episodeId);
+          return _buildPageWithTransition(
+            context: context, 
+            state: state, 
+            child: VideoPlayerScreen(storyId: storyId, episodeId: episodeId),
+          );
         },
       ),
       GoRoute(
@@ -130,7 +175,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/ai',
         name: 'aiHub',
-        builder: (context, state) => const AiHubScreen(),
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context: context, 
+          state: state, 
+          child: const AiHubScreen(),
+          slideUp: true,
+        ),
         routes: [
           GoRoute(
             parentNavigatorKey: _rootNavigatorKey,
@@ -148,9 +198,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             parentNavigatorKey: _rootNavigatorKey,
             path: 'result',
             name: 'aiResult',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final generationId = state.uri.queryParameters['id'] ?? '';
-              return AiResultScreen(generationId: generationId);
+              return _buildPageWithTransition(
+                context: context, 
+                state: state, 
+                child: AiResultScreen(generationId: generationId),
+                slideUp: true,
+              );
             },
           ),
         ]

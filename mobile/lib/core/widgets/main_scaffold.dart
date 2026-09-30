@@ -11,46 +11,55 @@ class MainScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       body: navigationShell,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.95),
-          border: const Border(top: BorderSide(color: AppColors.border)),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildNavItem(
-                  icon: Icons.home_filled,
-                  label: 'Home',
-                  index: 0,
-                  currentIndex: navigationShell.currentIndex,
-                  onTap: () => _goBranch(0),
-                ),
-                _buildNavItem(
-                  icon: Icons.search,
-                  label: 'Search',
-                  index: 1,
-                  currentIndex: navigationShell.currentIndex,
-                  onTap: () => _goBranch(1),
-                ),
-                _buildNavItem(
-                  icon: Icons.video_library_outlined,
-                  label: 'Library',
-                  index: 2,
-                  currentIndex: navigationShell.currentIndex,
-                  onTap: () => _goBranch(2),
-                ),
-                _buildProfileItem(
-                  index: 3,
-                  currentIndex: navigationShell.currentIndex,
-                  onTap: () => _goBranch(3),
-                ),
-              ],
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.only(left: 24, right: 24, bottom: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.primarySurface.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              )
+            ],
+            border: Border.all(
+              color: Colors.white.withOpacity(0.1),
+              width: 1,
             ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _AnimatedNavItem(
+                icon: Icons.home_rounded,
+                label: 'Home',
+                isSelected: navigationShell.currentIndex == 0,
+                onTap: () => _goBranch(0),
+              ),
+              _AnimatedNavItem(
+                icon: Icons.search_rounded,
+                label: 'Search',
+                isSelected: navigationShell.currentIndex == 1,
+                onTap: () => _goBranch(1),
+              ),
+              _AnimatedNavItem(
+                icon: Icons.bookmark_rounded,
+                label: 'Library',
+                isSelected: navigationShell.currentIndex == 2,
+                onTap: () => _goBranch(2),
+              ),
+              _AnimatedNavItem(
+                isProfile: true,
+                label: 'Profile',
+                isSelected: navigationShell.currentIndex == 3,
+                onTap: () => _goBranch(3),
+              ),
+            ],
           ),
         ),
       ),
@@ -63,78 +72,93 @@ class MainScaffold extends StatelessWidget {
       initialLocation: index == navigationShell.currentIndex,
     );
   }
+}
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required String label,
-    required int index,
-    required int currentIndex,
-    required VoidCallback onTap,
-  }) {
-    final isActive = index == currentIndex;
+class _AnimatedNavItem extends StatelessWidget {
+  final IconData? icon;
+  final bool isProfile;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _AnimatedNavItem({
+    this.icon,
+    this.isProfile = false,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: isActive ? AppColors.primaryAccent : AppColors.mutedText,
-            size: 24,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              color: isActive ? AppColors.primaryAccent : AppColors.mutedText,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 16 : 8,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryAccent.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildIcon(),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              child: SizedBox(
+                width: isSelected ? null : 0,
+                child: Padding(
+                  padding: EdgeInsets.only(left: isSelected ? 8 : 0),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? AppColors.primaryAccent : Colors.transparent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.clip,
+                    maxLines: 1,
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildProfileItem({
-    required int index,
-    required int currentIndex,
-    required VoidCallback onTap,
-  }) {
-    final isActive = index == currentIndex;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: isActive
-                  ? Border.all(color: AppColors.primaryAccent, width: 1.5)
-                  : null,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: const NetworkImageWithFallback(
-              imageUrl:
-                  'https://lh3.googleusercontent.com/aida/AEtjO1UHL1gIxZsXiKRQwhsoOpCyWPi8kbatjf8cA-Y9MxsFuTcBsA5wf2c4tl1c12IF6cVhnYu8dMJ2s_T9DC2x8ofc1PRLyD_ROBA0IWU0spHoO1XmBUDULngA6Se9La5tR7KXIfBfMv-EvK6z1kjPcMQCcbBQLObDgM097TIeIBE9sovWJ4PbhpclONwiX5N56Bxj1LgW-splkzUULgDjYAiX8J5-GotlgnGn4SNofmk_A2VcJE0Eq_IFJMxr',
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Profile',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-              color: isActive ? AppColors.primaryAccent : AppColors.mutedText,
-            ),
-          ),
-        ],
-      ),
+  Widget _buildIcon() {
+    if (isProfile) {
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: isSelected
+              ? Border.all(color: AppColors.primaryAccent, width: 2)
+              : Border.all(color: Colors.transparent, width: 2),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: const NetworkImageWithFallback(
+          imageUrl:
+              'https://lh3.googleusercontent.com/aida/AEtjO1UHL1gIxZsXiKRQwhsoOpCyWPi8kbatjf8cA-Y9MxsFuTcBsA5wf2c4tl1c12IF6cVhnYu8dMJ2s_T9DC2x8ofc1PRLyD_ROBA0IWU0spHoO1XmBUDULngA6Se9La5tR7KXIfBfMv-EvK6z1kjPcMQCcbBQLObDgM097TIeIBE9sovWJ4PbhpclONwiX5N56Bxj1LgW-splkzUULgDjYAiX8J5-GotlgnGn4SNofmk_A2VcJE0Eq_IFJMxr',
+        ),
+      );
+    }
+    
+    return Icon(
+      icon,
+      color: isSelected ? AppColors.primaryAccent : AppColors.secondaryText,
+      size: 24,
     );
   }
 }

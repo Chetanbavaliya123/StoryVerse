@@ -6,7 +6,9 @@ import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
 import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/core/models/continue_watching_item.dart';
 import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
-import 'package:storyverse/features/home/presentation/widgets/advertisement_carousel.dart';
+import 'package:storyverse/core/widgets/story_card.dart';
+import 'package:storyverse/core/widgets/section_header.dart';
+import 'package:storyverse/core/widgets/skeleton_loader.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -15,47 +17,56 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
+  late ScrollController _scrollController;
+  double _scrollOffset = 0;
+  bool _showTitle = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController()
+      ..addListener(() {
+        setState(() {
+          _scrollOffset = _scrollController.offset;
+          _showTitle = _scrollOffset > 100;
+        });
+      });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final adsAsync = ref.watch(advertisementsProvider);
     final trendingAsync = ref.watch(trendingStoriesProvider);
     final historyAsync = ref.watch(continueWatchingProvider);
     final recommendedAsync = ref.watch(allStoriesProvider);
-    final popularAsync = ref.watch(allStoriesProvider); // Reusing all for demo
+    final popularAsync = ref.watch(allStoriesProvider); 
     final latestAsync = ref.watch(latestStoriesProvider);
-    final genresAsync = ref.watch(genresProvider);
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: _showTitle ? AppColors.primaryBackground.withOpacity(0.95) : Colors.transparent,
         elevation: 0,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primaryAccent.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.menu_book,
-                color: AppColors.primaryAccent,
-                size: 24,
-              ),
+        centerTitle: false,
+        title: AnimatedOpacity(
+          opacity: _showTitle ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: const Text(
+            'StoryVerse',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
             ),
-            const SizedBox(width: 12),
-            const Text(
-              'StoryVerse',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
+          ),
         ),
         actions: [
           IconButton(
@@ -68,60 +79,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ],
       ),
+      floatingActionButton: const _AnimatedAIFab(),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 24),
+        controller: _scrollController,
+        padding: const EdgeInsets.only(bottom: 120), // Leave room for bottom nav
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ADVERTISEMENT CAROUSEL
-            adsAsync.when(
-              data: (ads) {
-                return AdvertisementCarousel(advertisements: ads);
+            // HERO SECTION
+            trendingAsync.when(
+              data: (stories) {
+                if (stories.isEmpty) return const SizedBox.shrink();
+                return _HeroSection(story: stories.first);
               },
-              loading: () => const SizedBox(
-                height: 180,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (_, _) => const SizedBox(
-                height: 180,
-                child: Center(
-                  child: Text(
-                    'Unable to load advertisements',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                ),
-              ),
+              loading: () => const SkeletonLoader(height: 500, borderRadius: 0),
+              error: (_, _) => const SizedBox(height: 100),
             ),
+            
+            const SizedBox(height: 24),
 
             // QUICK LINKS
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _QuickLink(
-                    icon: Icons.explore,
-                    label: 'Discover',
-                    onTap: () => context.push('/discover'),
-                  ),
-                  _QuickLink(
-                    icon: Icons.trending_up,
-                    label: 'Trending',
-                    onTap: () => context.push('/discover'),
-                  ),
-                  _QuickLink(
-                    icon: Icons.auto_awesome,
-                    label: 'AI Hub',
-                    onTap: () => context.push('/ai'),
-                  ),
-                  _QuickLink(
-                    icon: Icons.category,
-                    label: 'Genres',
-                    onTap: () => context.push('/discover'),
-                  ),
+                  _QuickLink(icon: Icons.explore, label: 'Discover', onTap: () => context.push('/discover')),
+                  const SizedBox(width: 12),
+                  _QuickLink(icon: Icons.trending_up, label: 'Trending', onTap: () => context.push('/discover')),
+                  const SizedBox(width: 12),
+                  _QuickLink(icon: Icons.category, label: 'Genres', onTap: () => context.push('/discover')),
                 ],
               ),
             ),
+
+            const SizedBox(height: 32),
 
             // CONTINUE WATCHING
             historyAsync.when(
@@ -130,12 +122,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _SectionHeader(
+                    SectionHeader(
                       title: 'Continue Watching',
-                      onSeeAll: () => context.push('/library'),
+                      onAction: () => context.push('/library'),
+                      actionLabel: 'See All',
                     ),
                     SizedBox(
-                      height: 160,
+                      height: 180,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -150,225 +143,105 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 );
               },
-              loading: () => const SizedBox.shrink(),
+              loading: () => _buildHorizontalSkeleton(),
               error: (_, _) => const SizedBox.shrink(),
             ),
 
-            // TRENDING STORIES
-            _SectionHeader(
-              title: 'Trending Now',
-              onSeeAll: () => context.push('/discover'),
-            ),
+            // TRENDING NOW (Skip the first one since it's in Hero)
             trendingAsync.when(
               data: (stories) {
-                if (stories.isEmpty) {
-                  return const SizedBox(
-                    height: 100,
-                    child: Center(
-                      child: Text(
-                        'No trending stories available yet',
-                        style: TextStyle(color: Colors.white70),
+                if (stories.length <= 1) return const SizedBox.shrink();
+                final remaining = stories.skip(1).toList();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SectionHeader(
+                      title: 'Trending Now',
+                      onAction: () => context.push('/discover'),
+                      actionLabel: 'See All',
+                    ),
+                    SizedBox(
+                      height: 220,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: remaining.length,
+                        itemBuilder: (context, index) {
+                          return StoryCard(story: remaining[index], width: 150, height: 220);
+                        },
                       ),
                     ),
-                  );
-                }
-                return SizedBox(
-                  height: 280,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: stories.length,
-                    itemBuilder: (context, index) {
-                      final story = stories[index];
-                      return _StoryCard(story: story, isLarge: true);
-                    },
-                  ),
+                    const SizedBox(height: 24),
+                  ],
                 );
               },
-              loading: () => const SizedBox(
-                height: 280,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (_, _) => SizedBox(
-                height: 200,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Unable to load stories',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () =>
-                            ref.invalidate(trendingStoriesProvider),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            const SizedBox(height: 24),
-
-            // POPULAR STORIES
-            _SectionHeader(
-              title: 'Popular Stories',
-              onSeeAll: () => context.push('/discover'),
-            ),
-            popularAsync.when(
-              data: (stories) {
-                if (stories.isEmpty) return const SizedBox.shrink();
-                return SizedBox(
-                  height: 220,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: stories.length > 8 ? 8 : stories.length,
-                    itemBuilder: (context, index) {
-                      final story = stories[index];
-                      return _StoryCard(story: story, isLarge: false);
-                    },
-                  ),
-                );
-              },
-              loading: () => const SizedBox(
-                height: 220,
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              loading: () => _buildHorizontalSkeleton(),
               error: (_, _) => const SizedBox.shrink(),
             ),
 
-            const SizedBox(height: 24),
-
-            // RECOMMENDED FOR YOU
-            _SectionHeader(
-              title: 'Recommended for You',
-              onSeeAll: () => context.push('/discover'),
-            ),
-            recommendedAsync.when(
-              data: (stories) {
-                if (stories.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Center(
-                      child: Text(
-                        'No stories available yet',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                  );
-                }
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: stories.length > 5
-                      ? 5
-                      : stories.length, // Limit to 5 for list
-                  itemBuilder: (context, index) {
-                    final story = stories[index];
-                    return _StoryListTile(story: story);
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Unable to load recommended stories',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: () => ref.invalidate(allStoriesProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // NEW RELEASES
-            _SectionHeader(
-              title: 'New Releases',
-              onSeeAll: () => context.push('/discover'),
-            ),
+            // LATEST STORIES
             latestAsync.when(
               data: (stories) {
                 if (stories.isEmpty) return const SizedBox.shrink();
-                return SizedBox(
-                  height: 220,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: stories.length,
-                    itemBuilder: (context, index) {
-                      final story = stories[index];
-                      return _StoryCard(story: story, isLarge: false);
-                    },
-                  ),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SectionHeader(
+                      title: 'Recently Added',
+                      onAction: () => context.push('/discover'),
+                      actionLabel: 'See All',
+                    ),
+                    SizedBox(
+                      height: 180,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: stories.length,
+                        itemBuilder: (context, index) {
+                          return StoryCard(story: stories[index], width: 120, height: 180);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 );
               },
-              loading: () => const SizedBox(
-                height: 220,
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              loading: () => _buildHorizontalSkeleton(),
               error: (_, _) => const SizedBox.shrink(),
             ),
 
-            const SizedBox(height: 24),
-
-            // GENRES
-            _SectionHeader(
-              title: 'Genres',
-              onSeeAll: () => context.push('/discover'),
-            ),
-            genresAsync.when(
-              data: (genres) {
-                if (genres.isEmpty) return const SizedBox.shrink();
-                return SizedBox(
-                  height: 100,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: genres.length,
-                    itemBuilder: (context, index) {
-                      final genre = genres[index];
-                      return Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        width: 120,
-                        decoration: BoxDecoration(
-                          color: AppColors.primarySurface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Center(
-                          child: Text(
-                            genre.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+            // RECOMMENDED (Vertical list)
+            recommendedAsync.when(
+              data: (stories) {
+                if (stories.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SectionHeader(
+                      title: 'Recommended for You',
+                      onAction: () => context.push('/discover'),
+                      actionLabel: 'See All',
+                    ),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: stories.length > 5 ? 5 : stories.length,
+                      itemBuilder: (context, index) {
+                        return StoryCard(story: stories[index], isHorizontal: true);
+                      },
+                    ),
+                  ],
                 );
               },
-              loading: () => const SizedBox(
-                height: 100,
-                child: Center(child: CircularProgressIndicator()),
+              loading: () => Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: List.generate(3, (index) => const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: SkeletonLoader(height: 120, borderRadius: 16),
+                  )),
+                ),
               ),
               error: (_, _) => const SizedBox.shrink(),
             ),
@@ -377,40 +250,238 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
+  Widget _buildHorizontalSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: SkeletonLoader(width: 150, height: 24),
+        ),
+        SizedBox(
+          height: 180,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 3,
+            itemBuilder: (context, index) => const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SkeletonLoader(width: 120, height: 180, borderRadius: 16),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback onSeeAll;
-
-  const _SectionHeader({required this.title, required this.onSeeAll});
+class _HeroSection extends StatelessWidget {
+  final StoryModel story;
+  const _HeroSection({required this.story});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return GestureDetector(
+      onTap: () => context.push('/story/${story.id}'),
+      child: Stack(
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          // Background Image
+          SizedBox(
+            height: 500,
+            width: double.infinity,
+            child: NetworkImageWithFallback(
+              imageUrl: story.bannerUrl ?? story.thumbnailUrl,
+              fit: BoxFit.cover,
             ),
           ),
-          TextButton(
-            onPressed: onSeeAll,
-            child: const Text(
-              'See All',
-              style: TextStyle(
-                color: AppColors.primaryAccent,
-                fontWeight: FontWeight.bold,
+          // Gradient Overlay
+          Container(
+            height: 500,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.primaryBackground.withOpacity(0.4),
+                  Colors.transparent,
+                  AppColors.primaryBackground.withOpacity(0.8),
+                  AppColors.primaryBackground,
+                ],
+                stops: const [0.0, 0.3, 0.8, 1.0],
               ),
             ),
           ),
+          // Content
+          Positioned(
+            bottom: 30,
+            left: 20,
+            right: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      story.categoryId.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Icon(Icons.circle, size: 4, color: AppColors.primaryAccent),
+                    ),
+                    Text(
+                      story.genreId.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  story.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => context.push('/story/${story.id}'),
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Watch Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    IconButton(
+                      onPressed: () {}, // Add to library icon
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.2),
+                        padding: const EdgeInsets.all(12),
+                      ),
+                    )
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _HistoryCard extends StatelessWidget {
+  final ContinueWatchingItem item;
+
+  const _HistoryCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/player/${item.story.id}/${item.episode.id}'),
+      child: Container(
+        width: 260,
+        margin: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: AppColors.primarySurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(15),
+                    topRight: Radius.circular(15),
+                  ),
+                  child: NetworkImageWithFallback(
+                    imageUrl: item.episode.thumbnailUrl.isNotEmpty ? item.episode.thumbnailUrl : item.story.thumbnailUrl,
+                    width: double.infinity,
+                    height: 110,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(
+                    value: item.history.percentage,
+                    backgroundColor: Colors.black.withValues(alpha: 0.5),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+                    minHeight: 4,
+                  ),
+                ),
+                const Positioned.fill(
+                  child: Center(
+                    child: Icon(
+                      Icons.play_circle_fill,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.story.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Ep ${item.episode.episodeNumber} • ${item.episode.title}',
+                    style: const TextStyle(
+                      color: AppColors.secondaryText,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -429,206 +500,27 @@ class _QuickLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.primarySurface,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Icon(icon, color: Colors.white, size: 24),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.secondaryText,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StoryCard extends StatelessWidget {
-  final StoryModel story;
-  final bool isLarge;
-
-  const _StoryCard({required this.story, this.isLarge = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final width = isLarge ? 160.0 : 120.0;
-    return InkWell(
-      onTap: () => context.push('/story/${story.id}'),
-      borderRadius: BorderRadius.circular(12),
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        width: width,
-        margin: const EdgeInsets.only(right: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.primarySurface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: NetworkImageWithFallback(
-                  imageUrl: story.thumbnailUrl,
-                  width: width,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
             Text(
-              story.title,
+              label,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 12),
-                const SizedBox(width: 4),
-                Text(
-                  '${story.rating}',
-                  style: const TextStyle(
-                    color: AppColors.secondaryText,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${story.episodeCount} ep',
-                  style: const TextStyle(
-                    color: AppColors.mutedText,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HistoryCard extends StatelessWidget {
-  final ContinueWatchingItem item;
-
-  const _HistoryCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/player/${item.story.id}/${item.episode.id}'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 260,
-        margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          color: AppColors.primarySurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-              child: NetworkImageWithFallback(
-                imageUrl: item.episode.thumbnailUrl,
-                width: 100,
-                height: 160,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      item.story.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.episode.title,
-                      style: const TextStyle(
-                        color: AppColors.secondaryText,
-                        fontSize: 12,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: item.history.percentage,
-                              backgroundColor: Colors.white24,
-                              color: AppColors.primaryAccent,
-                              minHeight: 6,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${(item.history.percentage * 100).toInt()}%',
-                          style: const TextStyle(
-                            color: AppColors.primaryAccent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Row(
-                      children: [
-                        Icon(
-                          Icons.play_circle_filled,
-                          color: AppColors.primaryAccent,
-                          size: 24,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Resume',
-                          style: TextStyle(
-                            color: AppColors.primaryAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -638,86 +530,30 @@ class _HistoryCard extends StatelessWidget {
   }
 }
 
-class _StoryListTile extends StatelessWidget {
-  final StoryModel story;
+class _AnimatedAIFab extends StatefulWidget {
+  const _AnimatedAIFab();
 
-  const _StoryListTile({required this.story});
+  @override
+  State<_AnimatedAIFab> createState() => _AnimatedAIFabState();
+}
+
+class _AnimatedAIFabState extends State<_AnimatedAIFab> {
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/story/${story.id}'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: AppColors.primarySurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-              child: NetworkImageWithFallback(
-                imageUrl: story.thumbnailUrl,
-                width: 100,
-                height: 120,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      story.genreId.toUpperCase(),
-                      style: const TextStyle(
-                        color: AppColors.primaryAccent,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      story.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${story.rating}',
-                          style: const TextStyle(
-                            color: AppColors.secondaryText,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const Spacer(),
-                        const Icon(
-                          Icons.play_circle_outline,
-                          color: AppColors.primaryAccent,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 90.0, right: 16.0),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: FloatingActionButton.extended(
+          onPressed: () => context.push('/ai'),
+          backgroundColor: AppColors.primaryAccent,
+          elevation: _isHovered ? 8 : 6,
+          isExtended: _isHovered,
+          icon: const Icon(Icons.auto_awesome, color: Colors.white),
+          label: const Text('AI Hub', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
       ),
     );

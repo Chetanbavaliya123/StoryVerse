@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAdmin() {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Default catch-all rule:
+    // Allow public reads so the mobile app can read stories, episodes, etc.
+    // Restrict all writes to Admins by default.
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Advertisements
+    match /advertisements/{adId} {
+      allow read: if true;
+    }
+    
+    // --- Specific Overrides for Mobile App Functionality ---
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read any profile (or we can restrict to own/admin, but public profile reading might be needed)
+      allow read: if request.auth != null;
+      
+      // Users can create their own profile, but cannot assign themselves as admin
+      allow create: if request.auth != null && request.auth.uid == userId && request.resource.data.role != 'admin';
+      
+      // Users can update their own profile, but cannot escalate their role to admin
+      allow update: if (request.auth != null && request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
+      
+      allow delete: if isAdmin();
+      
+      // Watch history, favorites, and library subcollections
+      match /watchHistory/{historyId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /favorites/{favoriteId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /library/{libraryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Comments subcollection
+    match /stories/{storyId}/comments/{commentId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    // AI Generations
+    match /aiGenerations/{generationId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Write is handled entirely via secure Cloud Functions
+      allow write: if false; 
+    }
+    
+    // Stories collection override for AI drafts
+    match /stories/{storyId} {
+      allow read: if true; // Public reading explicitly stated here
+      
+      // Episodes subcollection
+      match /episodes/{episodeId} {
+        allow read: if true;
+      }
+      
+      // Allow users to save their generated stories as private drafts
+      allow create: if request.auth != null 
+                    && request.resource.data.author == request.auth.uid
+                    && request.resource.data.status == 'draft'
+                    && request.resource.data.categoryId == 'ai-generated';
+                    
+      // Allow users to update/delete their own drafts
+      allow update, delete: if request.auth != null 
+                            && resource.data.author == request.auth.uid
+                            && resource.data.status == 'draft'
+                            || isAdmin();
+    }
+  }
+}

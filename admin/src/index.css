@@ -12,6 +12,9 @@
     overscroll-behavior: none;
     @apply bg-surface-container-lowest text-on-surface font-body-md text-body-md min-h-screen w-full;
   }
+  option {
+    @apply bg-surface-container-highest text-on-surface;
+  }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }

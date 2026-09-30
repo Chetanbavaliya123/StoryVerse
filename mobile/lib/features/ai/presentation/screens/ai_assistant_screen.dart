@@ -16,7 +16,11 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [
-    {'role': 'assistant', 'content': 'Hello! I am your StoryVerse AI Assistant. Ask me about any story, character lore, or get recommendations!'},
+    {
+      'role': 'assistant',
+      'content':
+          'Hello! I am your StoryVerse AI Assistant. Ask me about any story, character lore, or get recommendations!',
+    },
   ];
   bool _isLoading = false;
 
@@ -32,11 +36,13 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
     _scrollToBottom();
 
     try {
-      final response = await ref.read(aiRepositoryProvider).sendMessage(
-        userId: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
-        message: text,
-      );
-      
+      final response = await ref
+          .read(aiRepositoryProvider)
+          .sendMessage(
+            userId: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
+            message: text,
+          );
+
       setState(() {
         _messages.add({'role': 'assistant', 'content': response});
         _isLoading = false;
@@ -44,7 +50,10 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       _scrollToBottom();
     } catch (e) {
       setState(() {
-        _messages.add({'role': 'assistant', 'content': 'Sorry, I encountered an error. Please try again later.'});
+        _messages.add({
+          'role': 'assistant',
+          'content': 'Sorry, I encountered an error. Please try again later.',
+        });
         _isLoading = false;
       });
       _scrollToBottom();
@@ -85,7 +94,14 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
           children: [
             const Icon(Icons.auto_awesome, color: Colors.blue, size: 20),
             const SizedBox(width: 8),
-            const Text('Story Assistant', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'Story Assistant',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -109,9 +125,19 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue)),
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.blue,
+                    ),
+                  ),
                   SizedBox(width: 8),
-                  Text('Thinking...', style: TextStyle(color: AppColors.secondaryText)),
+                  Text(
+                    'Thinking...',
+                    style: TextStyle(color: AppColors.secondaryText),
+                  ),
                 ],
               ),
             ),
@@ -127,20 +153,32 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
         decoration: BoxDecoration(
-          color: isUser ? Colors.blue.withValues(alpha: 0.2) : AppColors.primarySurface,
+          color: isUser
+              ? Colors.blue.withValues(alpha: 0.2)
+              : AppColors.primarySurface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(isUser ? 16 : 0),
             bottomRight: Radius.circular(isUser ? 0 : 16),
           ),
-          border: Border.all(color: isUser ? Colors.blue.withValues(alpha: 0.5) : AppColors.border),
+          border: Border.all(
+            color: isUser
+                ? Colors.blue.withValues(alpha: 0.5)
+                : AppColors.border,
+          ),
         ),
         child: Text(
           text,
-          style: TextStyle(color: isUser ? Colors.white : AppColors.secondaryText, fontSize: 14, height: 1.4),
+          style: TextStyle(
+            color: isUser ? Colors.white : AppColors.secondaryText,
+            fontSize: 14,
+            height: 1.4,
+          ),
         ),
       ),
     );
@@ -163,10 +201,16 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                 decoration: InputDecoration(
                   hintText: 'Ask about a story or character...',
                   hintStyle: const TextStyle(color: AppColors.mutedText),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
                   filled: true,
                   fillColor: AppColors.primaryBackground,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
                 onSubmitted: (_) => _sendMessage(),
               ),

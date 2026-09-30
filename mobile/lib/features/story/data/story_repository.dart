@@ -80,6 +80,34 @@ class StoryRepository {
       if (doc.exists) {
         return StoryModel.fromFirestore(doc);
       }
+      
+      // If not found in stories, check aiGenerations (for AI stories saved to library)
+      final aiDoc = await _firestore.collection('aiGenerations').doc(storyId).get();
+      if (aiDoc.exists) {
+        final data = aiDoc.data()!;
+        return StoryModel(
+          id: aiDoc.id,
+          title: data['title'] ?? 'Untitled AI Story',
+          description: data['result'] != null && data['result'] is Map ? data['result']['description'] ?? '' : '',
+          fullDescription: data['storyContent'] ?? '',
+          thumbnailUrl: 'https://firebasestorage.googleapis.com/v0/b/storyverse-465bd.appspot.com/o/placeholders%2Fai_story_cover.png?alt=media',
+          bannerUrl: null,
+          genreId: (data['genre'] ?? 'ai').toString().toLowerCase(),
+          categoryId: 'ai-generated',
+          language: data['language'] ?? 'English',
+          tags: ['ai', (data['genre'] ?? '').toString().toLowerCase()],
+          author: data['userId'] ?? 'ai',
+          status: 'published',
+          episodeCount: 1,
+          views: 0,
+          rating: 0.0,
+          isDemo: false,
+          isPublished: true,
+          isTrending: false,
+          createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          updatedAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        );
+      }
     } catch (e) {
       // Fallback
     }

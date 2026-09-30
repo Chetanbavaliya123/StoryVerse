@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:storyverse/core/config/app_config.dart';
 import 'package:storyverse/core/models/ai_generation_model.dart';
 
 final aiRepositoryProvider = Provider<AiRepository>((ref) {
@@ -23,39 +26,44 @@ class AiRepository {
 
   String? get _uid => _auth.currentUser?.uid;
 
-  /// Generate a story using mock backend (ready for Cloud Functions integration)
+  /// Generate a story using Standalone AI Backend
   Future<String> generateStory({
     required String userId,
     required String prompt,
     required String genre,
+    String language = 'English',
   }) async {
     final uid = _uid ?? userId;
     if (uid.isEmpty) throw Exception('Must be logged in');
 
-    // Create pending generation document
-    final docRef = await _firestore.collection('aiGenerations').add({
-      'userId': uid,
-      'prompt': prompt,
-      'result': null,
-      'status': 'generating',
-      'type': 'story',
-      'genre': genre,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      final token = await _auth.currentUser?.getIdToken();
+      if (token == null) throw Exception('Authentication token unavailable.');
 
-    // Simulate AI generation with mock response
-    // In production, this would trigger a Cloud Function
-    await Future.delayed(const Duration(seconds: 2));
+      final url = Uri.parse('${AppConfig.aiBackendUrl}/generate-story');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'prompt': prompt,
+          'category': genre,
+          'language': language,
+        }),
+      );
 
-    final mockResult = _generateMockResult(prompt, 'story');
+      final data = jsonDecode(response.body);
 
-    await docRef.update({
-      'result': mockResult,
-      'status': 'completed',
-    });
-
-    final doc = await docRef.get();
-    return doc.id;
+      if (response.statusCode == 200 && data.containsKey('docId')) {
+        return data['docId'] as String;
+      }
+      
+      throw Exception(data['error'] ?? 'Server error occurred.');
+    } catch (e) {
+      throw Exception('Failed to generate story: $e');
+    }
   }
 
   /// Send a message to AI assistant
@@ -65,6 +73,31 @@ class AiRepository {
   }) async {
     await Future.delayed(const Duration(seconds: 1));
     return "This is a demo response to: '$message'. In production, this would be connected to the Gemini API via Firebase Cloud Functions to provide character backgrounds, story lore, and conversational AI assistance.";
+  }
+
+  /// Save generated story to user's library as a draft
+  Future<String> saveToLibrary(AiGenerationModel gen) async {
+    final uid = _uid;
+    if (uid == null) throw Exception('Must be logged in');
+
+    final title = gen.title ?? 'Untitled AI Story';
+    String description = '';
+    if (gen.result is Map && gen.result['description'] != null) {
+      description = gen.result['description'];
+    }
+
+    // Actually add the saved story to the user's library collection so it shows up in UI
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('library')
+        .doc(gen.id)
+        .set({
+      'addedAt': FieldValue.serverTimestamp(),
+      'storyId': gen.id,
+    });
+    
+    return gen.id;
   }
 
   /// Get user's generation history

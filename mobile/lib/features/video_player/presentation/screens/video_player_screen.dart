@@ -82,9 +82,17 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
     if (videoUrl.contains('drive.google.com')) {
       provider = 'google_drive';
-      final driveMatch = RegExp(r'\/file\/d\/([a-zA-Z0-9_-]+)').firstMatch(videoUrl);
+      final driveMatch = RegExp(r'(?:file\/d\/|id=)([a-zA-Z0-9_-]+)').firstMatch(videoUrl);
       if (driveMatch != null && driveMatch.group(1) != null) {
-        videoUrl = 'https://drive.google.com/uc?export=download&id=${driveMatch.group(1)}';
+        final fileId = driveMatch.group(1);
+        // Add confirm=t to bypass the Google Drive virus scan warning page for large files
+        videoUrl = 'https://drive.google.com/uc?export=download&confirm=t&id=$fileId';
+        
+        // On web, Google Drive blocks direct streaming due to CORS. 
+        // We use a CORS proxy to bypass this restriction.
+        if (const bool.fromEnvironment('dart.library.html') || const bool.fromEnvironment('dart.library.js_util')) {
+          videoUrl = 'https://corsproxy.io/?' + Uri.encodeComponent(videoUrl);
+        }
       }
     } else if (videoUrl.contains('youtube.com') || videoUrl.contains('youtu.be')) {
       provider = 'youtube';
@@ -344,7 +352,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                 // Completion overlay
                 if (_isCompleted) _buildCompletionOverlay()
                 // Controls overlay
-                else if (_showControls) _buildControlsOverlay(controller),
+                else 
+                  AnimatedOpacity(
+                    opacity: _showControls ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: _showControls || controller.value.isPlaying ? _buildControlsOverlay(controller) : const SizedBox.shrink(),
+                  ),
               ],
             ),
           ),

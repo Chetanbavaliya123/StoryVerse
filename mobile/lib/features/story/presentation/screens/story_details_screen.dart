@@ -8,6 +8,7 @@ import 'package:storyverse/features/story/presentation/providers/story_provider.
 import 'package:storyverse/features/library/data/library_repository.dart';
 import 'package:storyverse/features/story/data/comment_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:storyverse/core/widgets/skeleton_loader.dart' as storyverse_skeleton;
 
 class StoryDetailsScreen extends ConsumerStatefulWidget {
   final String storyId;
@@ -103,20 +104,38 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
-                Icons.error_outline,
+                Icons.error_outline_rounded,
                 color: AppColors.primaryAccent,
-                size: 48,
+                size: 64,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Error loading story',
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+              const SizedBox(height: 24),
+              const Text(
+                'Story unavailable',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.invalidate(storyDetailsProvider(widget.storyId)),
-                child: const Text('Retry'),
+              const SizedBox(height: 12),
+              const Text(
+                'Please check your connection and try again.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () => ref.invalidate(storyDetailsProvider(widget.storyId)),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
               ),
             ],
           ),
@@ -308,10 +327,10 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                       // Description
                       Text(
                         story.fullDescription ?? story.description,
-                        style: const TextStyle(
-                          color: AppColors.secondaryText,
-                          fontSize: 14,
-                          height: 1.6,
+                        style: TextStyle(
+                          color: story.categoryId == 'ai-generated' ? Colors.white : AppColors.secondaryText,
+                          fontSize: story.categoryId == 'ai-generated' ? 16 : 14,
+                          height: story.categoryId == 'ai-generated' ? 1.8 : 1.6,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -347,34 +366,39 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                       // Action buttons
                       Row(
                         children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                final episodes = episodesAsync.asData?.value;
-                                if (episodes != null && episodes.isNotEmpty) {
-                                  context.push(
-                                    '/player/${widget.storyId}/${episodes.first.id}',
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.play_arrow, size: 20),
-                              label: const Text(
-                                'Start Watching',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryAccent,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
+                          if (story.categoryId == 'ai-generated') const Spacer(),
+                          if (story.categoryId != 'ai-generated') ...[
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  final episodes = episodesAsync.asData?.value;
+                                  if (episodes != null && episodes.isNotEmpty) {
+                                    context.push(
+                                      '/player/${widget.storyId}/${episodes.first.id}',
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.play_arrow_rounded, size: 24),
+                                label: const Text(
+                                  'Start Watching',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryAccent,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  elevation: 8,
+                                  shadowColor: AppColors.primaryAccent.withOpacity(0.4),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
+                            const SizedBox(width: 16),
+                          ],
                           _actionIcon(
                             _isFavorite
                                 ? Icons.favorite
@@ -396,55 +420,64 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
-                      // Episodes section
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Episodes',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => context.push(
-                              '/story/${widget.storyId}/episodes',
-                            ),
-                            child: const Text(
-                              'See All',
+                      if (story.categoryId != 'ai-generated') ...[
+                        const SizedBox(height: 24),
+                        // Episodes section
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Episodes',
                               style: TextStyle(
-                                color: AppColors.primaryAccent,
-                                fontSize: 13,
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                            TextButton(
+                              onPressed: () => context.push(
+                                '/story/${widget.storyId}/episodes',
+                              ),
+                              child: const Text(
+                                'See All',
+                                style: TextStyle(
+                                  color: AppColors.primaryAccent,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
-              // Episode list
-              episodesAsync.when(
-                loading: () => const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primaryAccent,
-                      ),
+              if (story.categoryId != 'ai-generated')
+                episodesAsync.when(
+                loading: () => SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: storyverse_skeleton.SkeletonLoader(height: 100, borderRadius: 16),
                     ),
+                    childCount: 3,
                   ),
                 ),
-                error: (e, st) => const SliverToBoxAdapter(
+                error: (e, st) => SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Failed to load episodes',
-                      style: TextStyle(color: AppColors.secondaryText),
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          const Icon(Icons.error_outline, color: AppColors.secondaryText),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Something went wrong loading episodes.',
+                            style: TextStyle(color: AppColors.secondaryText),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

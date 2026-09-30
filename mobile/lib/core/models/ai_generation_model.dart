@@ -4,10 +4,11 @@ class AiGenerationModel {
   final String id;
   final String userId;
   final String prompt;
-  final String? result;
+  final dynamic result;
   final String status; // 'pending', 'generating', 'completed', 'failed'
   final String type; // 'story', 'plot', 'character', 'dialogue'
   final String genre;
+  final String language;
   final DateTime? createdAt;
 
   AiGenerationModel({
@@ -18,6 +19,7 @@ class AiGenerationModel {
     required this.status,
     required this.type,
     this.genre = 'Fantasy',
+    this.language = 'en',
     this.createdAt,
   });
 
@@ -31,6 +33,7 @@ class AiGenerationModel {
       status: data['status'] ?? 'pending',
       type: data['type'] ?? 'story',
       genre: data['genre'] ?? 'Fantasy',
+      language: data['language'] ?? 'en',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -43,6 +46,7 @@ class AiGenerationModel {
       'status': status,
       'type': type,
       'genre': genre,
+      'language': language,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -55,15 +59,44 @@ class AiGenerationModel {
   bool get isFailed => status == 'failed';
 
   String? get title {
-    if (result == null || result!.isEmpty) return null;
-    final lines = result!.split('\n');
-    return lines.first.replaceAll('**', '').trim();
+    if (result == null) return null;
+    if (result is Map) {
+      return result['title'] as String?;
+    }
+    if (result is String) {
+      if ((result as String).isEmpty) return null;
+      final lines = (result as String).split('\n');
+      return lines.first.replaceAll('**', '').trim();
+    }
+    return null;
   }
 
   String? get storyContent {
-    if (result == null || result!.isEmpty) return null;
-    final lines = result!.split('\n');
-    if (lines.length <= 1) return result;
-    return lines.sublist(1).join('\n').trim();
+    if (result == null) return null;
+    if (result is Map) {
+      final baseStory = result['story'] as String? ?? '';
+      
+      final chaptersRaw = result['chapters'];
+      if (chaptersRaw != null && chaptersRaw is List) {
+        final chaptersText = chaptersRaw.map((c) {
+          if (c is Map) {
+            final title = c['title'] ?? '';
+            final content = c['content'] ?? '';
+            return '\n\n### $title\n\n$content';
+          }
+          return '';
+        }).join('');
+        
+        return '$baseStory$chaptersText'.trim();
+      }
+      return baseStory;
+    }
+    if (result is String) {
+      if ((result as String).isEmpty) return null;
+      final lines = (result as String).split('\n');
+      if (lines.length <= 1) return result as String;
+      return lines.sublist(1).join('\n').trim();
+    }
+    return null;
   }
 }

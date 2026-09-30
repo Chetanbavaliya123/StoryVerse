@@ -4,102 +4,105 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
-import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..forward();
+  }
+  
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final favoritesAsync = ref.watch(favoriteStoriesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryAccent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'STORYVERSE STUDIO SUITE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 2.0,
-                    color: AppColors.secondaryText,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Profile',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        toolbarHeight: 90,
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.settings_outlined,
-              color: AppColors.secondaryText,
-            ),
+            icon: const Icon(Icons.settings_outlined, color: Colors.white),
             onPressed: () {},
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 120),
         child: Column(
           children: [
-            // Avatar section
-            Center(
+            // Header / Avatar Area
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 100, bottom: 40),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.primaryAccent.withOpacity(0.2),
+                    AppColors.primaryBackground,
+                  ],
+                ),
+              ),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 48,
-                    backgroundColor: AppColors.primarySurface,
-                    backgroundImage: user?.photoURL != null
-                        ? NetworkImage(user!.photoURL!)
-                        : null,
-                    child: user?.photoURL == null
-                        ? Text(
-                            (user?.displayName ?? user?.email ?? '?')[0]
-                                .toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryAccent,
-                            ),
-                          )
-                        : null,
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.primaryAccent, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryAccent.withOpacity(0.3),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: CircleAvatar(
+                      radius: 47,
+                      backgroundColor: AppColors.primarySurface,
+                      backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+                      child: user?.photoURL == null
+                          ? Text(
+                              (user?.displayName ?? user?.email ?? '?')[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryAccent,
+                              ),
+                            )
+                          : null,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    user?.displayName ??
-                        user?.email?.split('@').first ??
-                        'User',
+                    user?.displayName ?? user?.email?.split('@').first ?? 'Storyverse User',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -111,139 +114,189 @@ class ProfileScreen extends ConsumerWidget {
                       fontSize: 14,
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-            // Stats row
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.primarySurface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _statItem(
-                    'Favorites',
-                    favoritesAsync.when(
-                      data: (stories) => '${stories.length}',
-                      loading: () => '...',
-                      error: (_, _) => '0',
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primarySurface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
                     ),
-                    Icons.favorite,
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star, color: Colors.amber, size: 16),
+                        SizedBox(width: 8),
+                        Text('Premium Member', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
                   ),
-                  Container(width: 1, height: 40, color: AppColors.border),
-                  _statItem('Stories', '25', Icons.auto_stories),
-                  Container(width: 1, height: 40, color: AppColors.border),
-                  _statItem('Hours', '12', Icons.access_time),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            // Menu items
-            _menuItem(Icons.person_outline, 'Edit Profile', () {}),
-            _menuItem(
-              Icons.notifications_outlined,
-              'Notifications',
-              () => context.push('/notifications'),
-            ),
-            _menuItem(Icons.auto_awesome, 'AI Hub', () => context.push('/ai')),
-            _menuItem(
-              Icons.explore_outlined,
-              'Discover',
-              () => context.push('/discover'),
-            ),
-            _menuItem(Icons.help_outline, 'Help & Support', () {}),
-            _menuItem(Icons.info_outline, 'About StoryVerse', () {
-              showAboutDialog(
-                context: context,
-                applicationName: 'StoryVerse',
-                applicationVersion: '1.0.0',
-                applicationLegalese: '© 2026 StoryVerse. All rights reserved.',
-              );
-            }),
-            const SizedBox(height: 16),
-            // Logout button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  ref.read(authControllerProvider.notifier).signOut();
-                },
-                icon: const Icon(Icons.logout, size: 18),
-                label: const Text('Logout'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primaryAccent,
-                  side: const BorderSide(color: AppColors.primaryAccent),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  _buildAnimatedSection(
+                    index: 0,
+                    child: _buildSectionGroup(
+                      title: 'Account',
+                      children: [
+                        _buildListTile(Icons.person_outline, 'Personal Information'),
+                        _buildListTile(Icons.payment_outlined, 'Subscription & Billing'),
+                        _buildListTile(Icons.security_outlined, 'Security & Privacy'),
+                      ],
+                    ),
                   ),
-                ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  _buildAnimatedSection(
+                    index: 1,
+                    child: _buildSectionGroup(
+                      title: 'Preferences',
+                      children: [
+                        _buildListTile(Icons.notifications_outlined, 'Notifications'),
+                        _buildListTile(Icons.language_outlined, 'Language & Region'),
+                        _buildListTile(Icons.dark_mode_outlined, 'Theme Settings'),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  _buildAnimatedSection(
+                    index: 2,
+                    child: _buildSectionGroup(
+                      title: 'Tools',
+                      children: [
+                        _buildListTile(
+                          Icons.auto_awesome, 
+                          'AI Story Hub', 
+                          isAccent: true,
+                          onTap: () => context.push('/ai'),
+                        ),
+                        _buildListTile(Icons.history_rounded, 'Viewing History', onTap: () => context.push('/library')),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  _buildAnimatedSection(
+                    index: 3,
+                    child: _buildSectionGroup(
+                      title: 'About',
+                      children: [
+                        _buildListTile(Icons.help_outline, 'Help Center'),
+                        _buildListTile(Icons.info_outline, 'About StoryVerse'),
+                        _buildListTile(
+                          Icons.logout_rounded, 
+                          'Log Out', 
+                          isDestructive: true,
+                          onTap: () async {
+                            await ref.read(authControllerProvider.notifier).signOut();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _statItem(String label, String value, IconData icon) {
+  Widget _buildAnimatedSection({required int index, required Widget child}) {
+    final delay = index * 0.1;
+    final animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Interval(delay, delay + 0.5, curve: Curves.easeOutCubic),
+    );
+
+    return SlideTransition(
+      position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(animation),
+      child: FadeTransition(
+        opacity: animation,
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildSectionGroup({required String title, required List<Widget> children}) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: AppColors.primaryAccent, size: 24),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 8),
+          child: Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              color: AppColors.secondaryText,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(color: AppColors.secondaryText, fontSize: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.primarySurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              for (int i = 0; i < children.length; i++) ...[
+                children[i],
+                if (i < children.length - 1)
+                  const Divider(height: 1, thickness: 1, color: AppColors.border, indent: 56),
+              ],
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _menuItem(IconData icon, String title, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  Widget _buildListTile(IconData icon, String title, {VoidCallback? onTap, bool isDestructive = false, bool isAccent = false}) {
+    final color = isDestructive 
+        ? AppColors.primaryAccent 
+        : (isAccent ? Colors.amber : Colors.white);
+        
+    return ListTile(
+      onTap: onTap ?? () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$title is coming soon!'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      },
+      leading: Container(
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppColors.primarySurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          color: isDestructive ? AppColors.primaryAccent.withOpacity(0.1) : (isAccent ? Colors.amber.withOpacity(0.1) : AppColors.secondarySurface),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.secondaryText, size: 22),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(color: Colors.white, fontSize: 15),
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.mutedText,
-              size: 20,
-            ),
-          ],
+        child: Icon(icon, color: color, size: 20),
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: color,
+          fontSize: 15,
+          fontWeight: isAccent ? FontWeight.bold : FontWeight.normal,
         ),
       ),
+      trailing: isDestructive ? null : const Icon(Icons.chevron_right, color: AppColors.secondaryText, size: 20),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 }
