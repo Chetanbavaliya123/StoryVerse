@@ -21,46 +21,70 @@ class AiHubScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_awesome, color: AppColors.primaryAccent, size: 14),
+                const Icon(
+                  Icons.auto_awesome,
+                  color: AppColors.primaryAccent,
+                  size: 14,
+                ),
                 const SizedBox(width: 8),
-                const Text('INTELLIGENCE SUITE', style: TextStyle(fontSize: 10, letterSpacing: 2.0, color: AppColors.secondaryText, fontWeight: FontWeight.bold)),
+                const Text(
+                  'INTELLIGENCE SUITE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 2.0,
+                    color: AppColors.secondaryText,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 4),
-            const Text('AI Hub', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+            const Text(
+              'AI Hub',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ],
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildFeatureCard(
-            context: context,
-            title: 'Story Assistant',
-            description: 'Ask questions about any story, get character backgrounds, or explore lore.',
-            icon: Icons.chat_bubble_outline,
-            color: Colors.blue,
-            route: '/ai/assistant',
-          ),
-          const SizedBox(height: 16),
-          _buildFeatureCard(
-            context: context,
-            title: 'AI Story Generator',
-            description: 'Generate your own short stories using our advanced AI models.',
-            icon: Icons.auto_awesome,
-            color: AppColors.primaryAccent,
-            route: '/ai/generator',
-          ),
-          const SizedBox(height: 16),
-          _buildFeatureCard(
-            context: context,
-            title: 'Smart Recommendations',
-            description: 'Get highly personalized story recommendations based on your taste.',
-            icon: Icons.lightbulb_outline,
-            color: Colors.amber,
-            route: '/discover',
-          ),
-        ],
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildFeatureCard(
+              context: context,
+              title: 'Story Assistant',
+              description:
+                  'Ask questions about any story, get character backgrounds, or explore lore.',
+              icon: Icons.chat_bubble_outline,
+              color: Colors.blue,
+              route: '/ai/assistant',
+            ),
+            const SizedBox(height: 16),
+            _buildFeatureCard(
+              context: context,
+              title: 'AI Story Generator',
+              description:
+                  'Generate your own short stories using our advanced AI models.',
+              icon: Icons.auto_awesome,
+              color: AppColors.primaryAccent,
+              route: '/ai/generator',
+            ),
+            const SizedBox(height: 16),
+            _buildFeatureCard(
+              context: context,
+              title: 'Smart Recommendations',
+              description:
+                  'Get highly personalized story recommendations based on your taste.',
+              icon: Icons.lightbulb_outline,
+              color: Colors.amber,
+              route: '/discover',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -85,10 +109,7 @@ class AiHubScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              color.withValues(alpha: 0.1),
-              AppColors.primarySurface,
-            ],
+            colors: [color.withValues(alpha: 0.1), AppColors.primarySurface],
           ),
         ),
         child: Row(
@@ -106,9 +127,23 @@ class AiHubScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text(description, style: const TextStyle(color: AppColors.secondaryText, fontSize: 14, height: 1.4)),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: AppColors.secondaryText,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
                 ],
               ),
             ),

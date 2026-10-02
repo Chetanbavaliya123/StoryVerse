@@ -75,18 +75,20 @@ class AiGenerationModel {
     if (result == null) return null;
     if (result is Map) {
       final baseStory = result['story'] as String? ?? '';
-      
+
       final chaptersRaw = result['chapters'];
       if (chaptersRaw != null && chaptersRaw is List) {
-        final chaptersText = chaptersRaw.map((c) {
-          if (c is Map) {
-            final title = c['title'] ?? '';
-            final content = c['content'] ?? '';
-            return '\n\n### $title\n\n$content';
-          }
-          return '';
-        }).join('');
-        
+        final chaptersText = chaptersRaw
+            .map((c) {
+              if (c is Map) {
+                final title = c['title'] ?? '';
+                final content = c['content'] ?? '';
+                return '\n\n### $title\n\n$content';
+              }
+              return '';
+            })
+            .join('');
+
         return '$baseStory$chaptersText'.trim();
       }
       return baseStory;

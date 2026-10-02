@@ -17,7 +17,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with SingleTickerProviderStateMixin {
   late ScrollController _scrollController;
   double _scrollOffset = 0;
   bool _showTitle = false;
@@ -45,14 +46,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     final trendingAsync = ref.watch(trendingStoriesProvider);
     final historyAsync = ref.watch(continueWatchingProvider);
     final recommendedAsync = ref.watch(allStoriesProvider);
-    final popularAsync = ref.watch(allStoriesProvider); 
     final latestAsync = ref.watch(latestStoriesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: _showTitle ? AppColors.primaryBackground.withOpacity(0.95) : Colors.transparent,
+        backgroundColor: _showTitle
+            ? AppColors.primaryBackground.withValues(alpha: 0.95)
+            : Colors.transparent,
         elevation: 0,
         centerTitle: false,
         title: AnimatedOpacity(
@@ -82,7 +84,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       floatingActionButton: const _AnimatedAIFab(),
       body: SingleChildScrollView(
         controller: _scrollController,
-        padding: const EdgeInsets.only(bottom: 120), // Leave room for bottom nav
+        padding: const EdgeInsets.only(
+          bottom: 120,
+        ), // Leave room for bottom nav
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -95,21 +99,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               loading: () => const SkeletonLoader(height: 500, borderRadius: 0),
               error: (_, _) => const SizedBox(height: 100),
             ),
-            
+
             const SizedBox(height: 24),
 
             // QUICK LINKS
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _QuickLink(icon: Icons.explore, label: 'Discover', onTap: () => context.push('/discover')),
-                  const SizedBox(width: 12),
-                  _QuickLink(icon: Icons.trending_up, label: 'Trending', onTap: () => context.push('/discover')),
-                  const SizedBox(width: 12),
-                  _QuickLink(icon: Icons.category, label: 'Genres', onTap: () => context.push('/discover')),
-                ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _QuickLink(
+                      icon: Icons.explore,
+                      label: 'Discover',
+                      onTap: () => context.push('/discover'),
+                    ),
+                    const SizedBox(width: 12),
+                    _QuickLink(
+                      icon: Icons.trending_up,
+                      label: 'Trending',
+                      onTap: () => context.push('/discover'),
+                    ),
+                    const SizedBox(width: 12),
+                    _QuickLink(
+                      icon: Icons.category,
+                      label: 'Genres',
+                      onTap: () => context.push('/discover'),
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -167,7 +186,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: remaining.length,
                         itemBuilder: (context, index) {
-                          return StoryCard(story: remaining[index], width: 150, height: 220);
+                          return StoryCard(
+                            story: remaining[index],
+                            width: 150,
+                            height: 220,
+                          );
                         },
                       ),
                     ),
@@ -198,7 +221,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: stories.length,
                         itemBuilder: (context, index) {
-                          return StoryCard(story: stories[index], width: 120, height: 180);
+                          return StoryCard(
+                            story: stories[index],
+                            width: 120,
+                            height: 180,
+                          );
                         },
                       ),
                     ),
@@ -228,7 +255,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: stories.length > 5 ? 5 : stories.length,
                       itemBuilder: (context, index) {
-                        return StoryCard(story: stories[index], isHorizontal: true);
+                        return StoryCard(
+                          story: stories[index],
+                          isHorizontal: true,
+                        );
                       },
                     ),
                   ],
@@ -237,10 +267,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               loading: () => Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
-                  children: List.generate(3, (index) => const Padding(
-                    padding: EdgeInsets.only(bottom: 16),
-                    child: SkeletonLoader(height: 120, borderRadius: 16),
-                  )),
+                  children: List.generate(
+                    3,
+                    (index) => const Padding(
+                      padding: EdgeInsets.only(bottom: 16),
+                      child: SkeletonLoader(height: 120, borderRadius: 16),
+                    ),
+                  ),
                 ),
               ),
               error: (_, _) => const SizedBox.shrink(),
@@ -304,9 +337,9 @@ class _HeroSection extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppColors.primaryBackground.withOpacity(0.4),
+                  AppColors.primaryBackground.withValues(alpha: 0.4),
                   Colors.transparent,
-                  AppColors.primaryBackground.withOpacity(0.8),
+                  AppColors.primaryBackground.withValues(alpha: 0.8),
                   AppColors.primaryBackground,
                 ],
                 stops: const [0.0, 0.3, 0.8, 1.0],
@@ -335,7 +368,11 @@ class _HeroSection extends StatelessWidget {
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Icon(Icons.circle, size: 4, color: AppColors.primaryAccent),
+                      child: Icon(
+                        Icons.circle,
+                        size: 4,
+                        color: AppColors.primaryAccent,
+                      ),
                     ),
                     Text(
                       story.genreId.toUpperCase(),
@@ -368,12 +405,20 @@ class _HeroSection extends StatelessWidget {
                     ElevatedButton.icon(
                       onPressed: () => context.push('/story/${story.id}'),
                       icon: const Icon(Icons.play_arrow),
-                      label: const Text('Watch Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                      label: const Text(
+                        'Watch Now',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryAccent,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -381,10 +426,10 @@ class _HeroSection extends StatelessWidget {
                       onPressed: () {}, // Add to library icon
                       icon: const Icon(Icons.add, color: Colors.white),
                       style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
                         padding: const EdgeInsets.all(12),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ],
@@ -424,7 +469,9 @@ class _HistoryCard extends StatelessWidget {
                     topRight: Radius.circular(15),
                   ),
                   child: NetworkImageWithFallback(
-                    imageUrl: item.episode.thumbnailUrl.isNotEmpty ? item.episode.thumbnailUrl : item.story.thumbnailUrl,
+                    imageUrl: item.episode.thumbnailUrl.isNotEmpty
+                        ? item.episode.thumbnailUrl
+                        : item.story.thumbnailUrl,
                     width: double.infinity,
                     height: 110,
                     fit: BoxFit.cover,
@@ -437,7 +484,9 @@ class _HistoryCard extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: item.history.percentage,
                     backgroundColor: Colors.black.withValues(alpha: 0.5),
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primaryAccent,
+                    ),
                     minHeight: 4,
                   ),
                 ),
@@ -543,7 +592,7 @@ class _AnimatedAIFabState extends State<_AnimatedAIFab> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 90.0, right: 16.0),
+      padding: const EdgeInsets.only(bottom: 130.0, right: 12.0),
       child: MouseRegion(
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
@@ -553,7 +602,10 @@ class _AnimatedAIFabState extends State<_AnimatedAIFab> {
           elevation: _isHovered ? 8 : 6,
           isExtended: _isHovered,
           icon: const Icon(Icons.auto_awesome, color: Colors.white),
-          label: const Text('AI Hub', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          label: const Text(
+            'AI Hub',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );

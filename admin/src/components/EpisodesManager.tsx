@@ -134,11 +134,18 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
       const filePath = `videos/${Date.now()}-${safeFileName}`;
 
       // Simulate a generic progress since standard upload doesn't have progress callback
+      setVideoUploadProgress(10);
+
+      // Mobile browser fix: Convert File to ArrayBuffer to avoid failed uploads
+      // on Android Chrome when using Supabase JS client.
+      const fileBuffer = await file.arrayBuffer();
+      
       setVideoUploadProgress(50);
 
       const { error } = await supabase.storage
         .from('storyverse-media')
-        .upload(filePath, file, {
+        .upload(filePath, fileBuffer, {
+          contentType: file.type || 'video/mp4',
           cacheControl: '3600',
           upsert: false
         });
@@ -174,7 +181,13 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
       setIsUploadingVideo(false);
     } catch (err: any) {
       console.error("Upload preparation failed:", err);
-      setErrorMsg("Video upload failed. Please check your Supabase configuration or try selecting the video again.");
+      let errorCategory = "Network/Storage Error";
+      if (err.message && err.message.toLowerCase().includes('mime')) errorCategory = "Unsupported file type";
+      else if (err.message && err.message.toLowerCase().includes('fetch')) errorCategory = "Network error";
+      else if (err.message && err.message.toLowerCase().includes('permission')) errorCategory = "Storage permission error";
+      else if (err.message && err.message.toLowerCase().includes('bucket')) errorCategory = "Bucket error";
+      
+      setErrorMsg(`Upload failed [${errorCategory}]: ${err.message || 'Please check your connection and try again.'}`);
       setIsUploadingVideo(false);
     }
   };
@@ -237,7 +250,7 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
       if (isUploadingVideo) {
         setErrorMsg("Please wait for the video to finish uploading.");
       } else if (videoFile) {
-        setErrorMsg("Video upload failed previously. Please check your Supabase credentials in .env or select the video again.");
+        setErrorMsg("Video upload failed previously. Please verify your connection or try a smaller video.");
       } else {
         setErrorMsg("Please upload an MP4 video.");
       }
@@ -253,9 +266,12 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
         const fileName = `${Date.now()}_${thumbnailFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
         const filePath = `stories/${storyId}/episodes/${draftId}/thumbnail/${fileName}`;
         
+        const fileBuffer = await thumbnailFile.arrayBuffer();
+        
         const { error: uploadError } = await supabase.storage
           .from('storyverse-media')
-          .upload(filePath, thumbnailFile, {
+          .upload(filePath, fileBuffer, {
+            contentType: thumbnailFile.type || 'image/jpeg',
             cacheControl: '3600',
             upsert: false
           });
@@ -271,7 +287,7 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
             errorMessage: uploadError.message,
             errorName: uploadError.name
           });
-          throw new Error("Thumbnail upload failed: " + uploadError.message);
+          throw new Error(`Thumbnail upload failed: ${uploadError.message}`);
         }
 
         const { data: { publicUrl } } = supabase.storage

@@ -67,8 +67,13 @@ class AppTheme {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.primaryAccent),
         ),
-        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.mutedText),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.mutedText,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
       ),
     );
   }

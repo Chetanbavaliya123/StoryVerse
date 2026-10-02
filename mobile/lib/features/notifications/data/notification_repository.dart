@@ -4,7 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:storyverse/core/models/notification_model.dart';
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
-  return NotificationRepository(FirebaseFirestore.instance, FirebaseAuth.instance);
+  return NotificationRepository(
+    FirebaseFirestore.instance,
+    FirebaseAuth.instance,
+  );
 });
 
 class NotificationRepository {
@@ -27,8 +30,11 @@ class NotificationRepository {
         .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => NotificationModel.fromFirestore(doc)).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => NotificationModel.fromFirestore(doc))
+              .toList(),
+        );
   }
 
   /// Get unread count
@@ -93,14 +99,14 @@ class NotificationRepository {
         .doc(uid)
         .collection('notifications')
         .add({
-      'userId': uid,
-      'title': title,
-      'body': body,
-      'type': type,
-      'imageUrl': imageUrl,
-      'targetRoute': targetRoute,
-      'isRead': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+          'userId': uid,
+          'title': title,
+          'body': body,
+          'type': type,
+          'imageUrl': imageUrl,
+          'targetRoute': targetRoute,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
   }
 }

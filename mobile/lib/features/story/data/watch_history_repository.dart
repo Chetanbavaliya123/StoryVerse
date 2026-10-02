@@ -4,7 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:storyverse/core/models/watch_history_model.dart';
 
 final watchHistoryRepositoryProvider = Provider<WatchHistoryRepository>((ref) {
-  return WatchHistoryRepository(FirebaseFirestore.instance, FirebaseAuth.instance);
+  return WatchHistoryRepository(
+    FirebaseFirestore.instance,
+    FirebaseAuth.instance,
+  );
 });
 
 class WatchHistoryRepository {
@@ -26,7 +29,9 @@ class WatchHistoryRepository {
     if (uid == null) return;
 
     try {
-      final percentage = totalDuration > 0 ? progressSeconds / totalDuration : 0.0;
+      final percentage = totalDuration > 0
+          ? progressSeconds / totalDuration
+          : 0.0;
       final isCompleted = percentage >= 0.9; // 90% = completed
 
       // Use deterministic ID so we don't create duplicates
@@ -38,22 +43,25 @@ class WatchHistoryRepository {
           .collection('watchHistory')
           .doc(docId)
           .set({
-        'userId': uid,
-        'storyId': storyId,
-        'episodeId': episodeId,
-        'progressSeconds': progressSeconds,
-        'totalDuration': totalDuration,
-        'percentage': percentage,
-        'isCompleted': isCompleted,
-        'lastWatchedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            'userId': uid,
+            'storyId': storyId,
+            'episodeId': episodeId,
+            'progressSeconds': progressSeconds,
+            'totalDuration': totalDuration,
+            'percentage': percentage,
+            'isCompleted': isCompleted,
+            'lastWatchedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       print('Failed to update watch progress: $e');
     }
   }
 
   /// Get watch history entry for a specific episode
-  Future<WatchHistoryModel?> getEpisodeProgress(String storyId, String episodeId) async {
+  Future<WatchHistoryModel?> getEpisodeProgress(
+    String storyId,
+    String episodeId,
+  ) async {
     final uid = _uid;
     if (uid == null) return null;
 
@@ -64,7 +72,8 @@ class WatchHistoryRepository {
           .doc(uid)
           .collection('watchHistory')
           .doc(docId)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 5));
 
       if (doc.exists) {
         return WatchHistoryModel.fromFirestore(doc);
@@ -85,14 +94,16 @@ class WatchHistoryRepository {
           .collection('users')
           .doc(uid)
           .collection('watchHistory')
-          .where('isCompleted', isEqualTo: false)
-          .where('percentage', isGreaterThan: 0)
-          .orderBy('percentage', descending: true)
           .orderBy('lastWatchedAt', descending: true)
-          .limit(10)
-          .get();
+          .limit(50)
+          .get()
+          .timeout(const Duration(seconds: 5));
 
-      return snapshot.docs.map((doc) => WatchHistoryModel.fromFirestore(doc)).toList();
+      return snapshot.docs
+          .map((doc) => WatchHistoryModel.fromFirestore(doc))
+          .where((model) => !model.isCompleted && model.percentage > 0)
+          .take(10)
+          .toList();
     } catch (e) {
       print('Failed to get continue watching: $e');
       return [];
@@ -111,9 +122,12 @@ class WatchHistoryRepository {
           .collection('watchHistory')
           .orderBy('lastWatchedAt', descending: true)
           .limit(50)
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 5));
 
-      return snapshot.docs.map((doc) => WatchHistoryModel.fromFirestore(doc)).toList();
+      return snapshot.docs
+          .map((doc) => WatchHistoryModel.fromFirestore(doc))
+          .toList();
     } catch (e) {
       print('Failed to get watch history: $e');
       return [];

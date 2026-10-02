@@ -47,15 +47,34 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Row(
               children: [
                 Container(
-                  width: 8, height: 8,
-                  decoration: const BoxDecoration(color: AppColors.primaryAccent, shape: BoxShape.circle),
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryAccent,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                const Text('EXPLORE', style: TextStyle(fontSize: 10, letterSpacing: 2.0, color: AppColors.secondaryText, fontWeight: FontWeight.bold)),
+                const Text(
+                  'EXPLORE',
+                  style: TextStyle(
+                    fontSize: 10,
+                    letterSpacing: 2.0,
+                    color: AppColors.secondaryText,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 4),
-            const Text('Search', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+            const Text(
+              'Search',
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ],
         ),
         toolbarHeight: 90,
@@ -67,13 +86,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                boxShadow: _focusNode.hasFocus ? [
-                  BoxShadow(
-                    color: AppColors.primaryAccent.withOpacity(0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  )
-                ] : [],
+                boxShadow: _focusNode.hasFocus
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primaryAccent.withValues(alpha: 0.2),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : [],
               ),
               child: TextField(
                 controller: _controller,
@@ -82,10 +103,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search stories, genres, authors...',
                   hintStyle: const TextStyle(color: AppColors.mutedText),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.secondaryText),
-                  suffixIcon: query.isNotEmpty 
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: AppColors.secondaryText,
+                  ),
+                  suffixIcon: query.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: AppColors.secondaryText),
+                          icon: const Icon(
+                            Icons.clear,
+                            color: AppColors.secondaryText,
+                          ),
                           onPressed: () {
                             _controller.clear();
                             ref.read(searchQueryProvider.notifier).clear();
@@ -104,11 +131,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: AppColors.primaryAccent, width: 1.5),
+                    borderSide: const BorderSide(
+                      color: AppColors.primaryAccent,
+                      width: 1.5,
+                    ),
                   ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                onChanged: (value) => ref.read(searchQueryProvider.notifier).update(value),
+                onChanged: (value) =>
+                    ref.read(searchQueryProvider.notifier).update(value),
               ),
             ),
           ),

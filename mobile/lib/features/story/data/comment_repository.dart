@@ -22,8 +22,11 @@ class CommentRepository {
         .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => CommentModel.fromFirestore(doc)).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => CommentModel.fromFirestore(doc))
+              .toList(),
+        );
   }
 
   /// Add a comment to a story
@@ -36,20 +39,23 @@ class CommentRepository {
 
     final trimmed = text.trim();
     if (trimmed.isEmpty) throw Exception('Comment cannot be empty');
-    if (trimmed.length > 500) throw Exception('Comment too long (max 500 characters)');
+    if (trimmed.length > 500) {
+      throw Exception('Comment too long (max 500 characters)');
+    }
 
     await _firestore
         .collection('stories')
         .doc(storyId)
         .collection('comments')
         .add({
-      'userId': user.uid,
-      'userName': user.displayName ?? user.email?.split('@').first ?? 'User',
-      'userPhoto': user.photoURL,
-      'text': trimmed,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+          'userId': user.uid,
+          'userName':
+              user.displayName ?? user.email?.split('@').first ?? 'User',
+          'userPhoto': user.photoURL,
+          'text': trimmed,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   /// Delete a comment (only if user owns it)

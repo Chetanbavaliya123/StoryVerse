@@ -3,7 +3,7 @@ import 'dart:io';
 void main() {
   final dir = Directory('lib');
   int convertedCount = 0;
-  
+
   for (final entity in dir.listSync(recursive: true)) {
     if (entity is File && entity.path.endsWith('.dart')) {
       final bytes = entity.readAsBytesSync();
@@ -22,7 +22,7 @@ void main() {
         // Simple ASCII extraction from UTF-16 BE
         final List<int> utf8Bytes = [];
         for (int i = 2; i < bytes.length; i += 2) {
-          utf8Bytes.add(bytes[i+1]);
+          utf8Bytes.add(bytes[i + 1]);
         }
         entity.writeAsBytesSync(utf8Bytes);
         convertedCount++;

@@ -15,8 +15,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      persistenceEnabled: false,
     );
     debugPrint('Firebase initialized successfully.');
   } catch (e) {
@@ -25,6 +24,7 @@ void main() async {
 
   runApp(const ProviderScope(child: StoryVerseApp()));
 }
+
 class StoryVerseApp extends ConsumerWidget {
   const StoryVerseApp({super.key});
 

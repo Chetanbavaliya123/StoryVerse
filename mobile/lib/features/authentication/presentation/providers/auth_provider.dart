@@ -18,17 +18,26 @@ class AuthController extends AsyncNotifier<void> {
 
   Future<void> signInWithEmailAndPassword(String email, String password) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _authRepository.signInWithEmailAndPassword(email, password));
+    state = await AsyncValue.guard(
+      () => _authRepository.signInWithEmailAndPassword(email, password),
+    );
   }
 
-  Future<void> createUserWithEmailAndPassword(String email, String password) async {
+  Future<void> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _authRepository.createUserWithEmailAndPassword(email, password));
+    state = await AsyncValue.guard(
+      () => _authRepository.createUserWithEmailAndPassword(email, password),
+    );
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _authRepository.sendPasswordResetEmail(email));
+    state = await AsyncValue.guard(
+      () => _authRepository.sendPasswordResetEmail(email),
+    );
   }
 
   Future<void> signInWithGoogle() async {

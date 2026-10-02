@@ -28,7 +28,9 @@ class UserRepository {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final Map<String, dynamic> data = {'updatedAt': FieldValue.serverTimestamp()};
+    final Map<String, dynamic> data = {
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
     if (name != null) data['name'] = name;
     if (photoUrl != null) data['photoUrl'] = photoUrl;
 

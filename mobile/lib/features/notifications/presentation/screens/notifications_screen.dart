@@ -25,7 +25,14 @@ class NotificationsScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Notifications', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Notifications',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.done_all, color: AppColors.primaryAccent),
@@ -33,7 +40,13 @@ class NotificationsScreen extends ConsumerWidget {
             onPressed: () {
               ref.read(notificationRepositoryProvider).markAllAsRead();
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('All notifications marked as read', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.primarySurface),
+                const SnackBar(
+                  content: Text(
+                    'All notifications marked as read',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  backgroundColor: AppColors.primarySurface,
+                ),
               );
             },
           ),
@@ -47,7 +60,7 @@ class NotificationsScreen extends ConsumerWidget {
 
           // Generate some fake demo notifications if empty for final project showcase
           // (Since we don't have a backend pushing them yet, this makes the demo look complete)
-          
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: notifications.length,
@@ -57,8 +70,12 @@ class NotificationsScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primaryAccent)),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryAccent),
+        ),
+        error: (e, _) => Center(
+          child: Text('Error: $e', style: const TextStyle(color: Colors.white)),
+        ),
       ),
     );
   }
@@ -78,7 +95,8 @@ class NotificationsScreen extends ConsumerWidget {
         ),
         _buildDemoNotificationItem(
           title: 'Story Recommended for You',
-          message: 'Because you watched "The Lion and the Mouse", you might like "The Golden Egg".',
+          message:
+              'Because you watched "The Lion and the Mouse", you might like "The Golden Egg".',
           timeAgo: '1 day ago',
           icon: Icons.auto_awesome,
           color: Colors.amber,
@@ -86,7 +104,8 @@ class NotificationsScreen extends ConsumerWidget {
         ),
         _buildDemoNotificationItem(
           title: 'Subscription Expiring',
-          message: 'Your StoryVerse Pro subscription expires in 3 days. Renew now to avoid interruption.',
+          message:
+              'Your StoryVerse Pro subscription expires in 3 days. Renew now to avoid interruption.',
           timeAgo: '2 days ago',
           icon: Icons.warning_amber_rounded,
           color: Colors.orange,
@@ -94,7 +113,8 @@ class NotificationsScreen extends ConsumerWidget {
         ),
         _buildDemoNotificationItem(
           title: 'System Update',
-          message: 'Welcome to StoryVerse v2.0! Check out our new AI Hub features.',
+          message:
+              'Welcome to StoryVerse v2.0! Check out our new AI Hub features.',
           timeAgo: '1 week ago',
           icon: Icons.system_update,
           color: AppColors.primaryAccent,
@@ -116,9 +136,15 @@ class NotificationsScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isRead ? AppColors.primarySurface : AppColors.primarySurface.withValues(alpha: 0.8),
+        color: isRead
+            ? AppColors.primarySurface
+            : AppColors.primarySurface.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isRead ? AppColors.border : AppColors.primaryAccent.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: isRead
+              ? AppColors.border
+              : AppColors.primaryAccent.withValues(alpha: 0.5),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +171,9 @@ class NotificationsScreen extends ConsumerWidget {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
+                          fontWeight: isRead
+                              ? FontWeight.w600
+                              : FontWeight.bold,
                         ),
                       ),
                     ),
@@ -185,22 +213,34 @@ class NotificationsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNotificationItem(BuildContext context, WidgetRef ref, NotificationModel notif) {
+  Widget _buildNotificationItem(
+    BuildContext context,
+    WidgetRef ref,
+    NotificationModel notif,
+  ) {
     IconData getIcon() {
       switch (notif.type) {
-        case 'new_episode': return Icons.play_circle_filled;
-        case 'recommendation': return Icons.auto_awesome;
-        case 'system': return Icons.system_update;
-        default: return Icons.notifications;
+        case 'new_episode':
+          return Icons.play_circle_filled;
+        case 'recommendation':
+          return Icons.auto_awesome;
+        case 'system':
+          return Icons.system_update;
+        default:
+          return Icons.notifications;
       }
     }
 
     Color getColor() {
       switch (notif.type) {
-        case 'new_episode': return Colors.blue;
-        case 'recommendation': return Colors.amber;
-        case 'system': return AppColors.primaryAccent;
-        default: return Colors.white;
+        case 'new_episode':
+          return Colors.blue;
+        case 'recommendation':
+          return Colors.amber;
+        case 'system':
+          return AppColors.primaryAccent;
+        default:
+          return Colors.white;
       }
     }
 
@@ -218,9 +258,15 @@ class NotificationsScreen extends ConsumerWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: notif.isRead ? AppColors.primarySurface : AppColors.primarySurface.withValues(alpha: 0.8),
+          color: notif.isRead
+              ? AppColors.primarySurface
+              : AppColors.primarySurface.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: notif.isRead ? AppColors.border : AppColors.primaryAccent.withValues(alpha: 0.5)),
+          border: Border.all(
+            color: notif.isRead
+                ? AppColors.border
+                : AppColors.primaryAccent.withValues(alpha: 0.5),
+          ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +293,9 @@ class NotificationsScreen extends ConsumerWidget {
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
-                            fontWeight: notif.isRead ? FontWeight.w600 : FontWeight.bold,
+                            fontWeight: notif.isRead
+                                ? FontWeight.w600
+                                : FontWeight.bold,
                           ),
                         ),
                       ),
@@ -266,7 +314,9 @@ class NotificationsScreen extends ConsumerWidget {
                   Text(
                     notif.body,
                     style: TextStyle(
-                      color: notif.isRead ? AppColors.secondaryText : Colors.white70,
+                      color: notif.isRead
+                          ? AppColors.secondaryText
+                          : Colors.white70,
                       fontSize: 14,
                       height: 1.4,
                     ),

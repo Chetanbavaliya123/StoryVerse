@@ -44,7 +44,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   }
 
   Future<void> _loadEpisode() async {
-    setState(() { _isLoading = true; _hasError = false; });
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
 
     try {
       final repo = ref.read(storyRepositoryProvider);
@@ -53,12 +56,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       allEpisodes.sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
 
       if (episode == null) {
-        setState(() { _hasError = true; _errorMessage = 'Episode not found'; _isLoading = false; });
+        setState(() {
+          _hasError = true;
+          _errorMessage = 'Episode not found';
+          _isLoading = false;
+        });
         return;
       }
 
       if (episode.videoUrl.trim().isEmpty) {
-        setState(() { _hasError = true; _errorMessage = 'Video unavailable for this episode.'; _isLoading = false; });
+        setState(() {
+          _hasError = true;
+          _errorMessage = 'Video unavailable for this episode.';
+          _isLoading = false;
+        });
         return;
       }
 
@@ -66,11 +77,18 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       _allEpisodes = allEpisodes;
 
       // Restore previous position
-      final history = await _historyRepo.getEpisodeProgress(widget.storyId, widget.episodeId);
+      final history = await _historyRepo.getEpisodeProgress(
+        widget.storyId,
+        widget.episodeId,
+      );
 
       await _initializePlayer(episode.videoUrl, history?.progressSeconds);
     } catch (e) {
-      setState(() { _hasError = true; _errorMessage = 'Failed to load: $e'; _isLoading = false; });
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Failed to load: $e';
+        _isLoading = false;
+      });
     }
   }
 
@@ -82,25 +100,31 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
     if (videoUrl.contains('drive.google.com')) {
       provider = 'google_drive';
-      final driveMatch = RegExp(r'(?:file\/d\/|id=)([a-zA-Z0-9_-]+)').firstMatch(videoUrl);
+      final driveMatch = RegExp(
+        r'(?:file\/d\/|id=)([a-zA-Z0-9_-]+)',
+      ).firstMatch(videoUrl);
       if (driveMatch != null && driveMatch.group(1) != null) {
         final fileId = driveMatch.group(1);
         // Add confirm=t to bypass the Google Drive virus scan warning page for large files
-        videoUrl = 'https://drive.google.com/uc?export=download&confirm=t&id=$fileId';
-        
-        // On web, Google Drive blocks direct streaming due to CORS. 
+        videoUrl =
+            'https://drive.google.com/uc?export=download&confirm=t&id=$fileId';
+
+        // On web, Google Drive blocks direct streaming due to CORS.
         // We use a CORS proxy to bypass this restriction.
-        if (const bool.fromEnvironment('dart.library.html') || const bool.fromEnvironment('dart.library.js_util')) {
-          videoUrl = 'https://corsproxy.io/?' + Uri.encodeComponent(videoUrl);
+        if (const bool.fromEnvironment('dart.library.html') ||
+            const bool.fromEnvironment('dart.library.js_util')) {
+          videoUrl = 'https://corsproxy.io/?${Uri.encodeComponent(videoUrl)}';
         }
       }
-    } else if (videoUrl.contains('youtube.com') || videoUrl.contains('youtu.be')) {
+    } else if (videoUrl.contains('youtube.com') ||
+        videoUrl.contains('youtu.be')) {
       provider = 'youtube';
       if (mounted) {
-        setState(() { 
-          _hasError = true; 
+        setState(() {
+          _hasError = true;
           _isLoading = false;
-          _errorMessage = 'This episode needs a direct video source.\nYouTube URLs are not supported as in-app video sources.';
+          _errorMessage =
+              'This episode needs a direct video source.\nYouTube URLs are not supported as in-app video sources.';
         });
       }
       return;
@@ -111,9 +135,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
     try {
       await controller.initialize().timeout(const Duration(seconds: 15));
-      
+
       print('PLAYER READY');
-      
+
       if (startPosition != null && startPosition > 0) {
         await controller.seekTo(Duration(seconds: startPosition));
       }
@@ -125,7 +149,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       _startHideControlsTimer();
 
       if (mounted) {
-        setState(() { _isLoading = false; });
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
       assert(() {
@@ -139,13 +165,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       }());
 
       if (mounted) {
-        setState(() { 
-          _hasError = true; 
+        setState(() {
+          _hasError = true;
           _isLoading = false;
           if (e is TimeoutException) {
             _errorMessage = 'Video is taking too long to load.';
           } else if (provider == 'google_drive') {
-            _errorMessage = 'Unable to play this Google Drive video. It may be private, restricted, or exceeded sharing limits.';
+            _errorMessage =
+                'Unable to play this Google Drive video. It may be private, restricted, or exceeded sharing limits.';
           } else {
             _errorMessage = 'Unable to play this episode.';
           }
@@ -161,7 +188,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final controller = _controller;
     if (controller == null) return;
 
-    if (controller.value.position >= controller.value.duration - const Duration(seconds: 1) && controller.value.duration > Duration.zero) {
+    if (controller.value.position >=
+            controller.value.duration - const Duration(seconds: 1) &&
+        controller.value.duration > Duration.zero) {
       if (!_isCompleted) {
         _saveProgress();
         setState(() {
@@ -169,7 +198,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
           _showControls = false;
         });
       }
-    } else if (_isCompleted && controller.value.position < controller.value.duration - const Duration(seconds: 2)) {
+    } else if (_isCompleted &&
+        controller.value.position <
+            controller.value.duration - const Duration(seconds: 2)) {
       setState(() {
         _isCompleted = false;
       });
@@ -203,13 +234,17 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     _hideControlsTimer?.cancel();
     _hideControlsTimer = Timer(const Duration(seconds: 4), () {
       if (mounted && _controller?.value.isPlaying == true) {
-        setState(() { _showControls = false; });
+        setState(() {
+          _showControls = false;
+        });
       }
     });
   }
 
   void _toggleControls() {
-    setState(() { _showControls = !_showControls; });
+    setState(() {
+      _showControls = !_showControls;
+    });
     if (_showControls) _startHideControlsTimer();
   }
 
@@ -220,10 +255,13 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     if (controller.value.isPlaying) {
       controller.pause();
       _saveProgress();
-      setState(() { _showControls = true; });
+      setState(() {
+        _showControls = true;
+      });
     } else {
       // If at end, replay from start
-      if (controller.value.position >= controller.value.duration - const Duration(seconds: 1)) {
+      if (controller.value.position >=
+          controller.value.duration - const Duration(seconds: 1)) {
         controller.seekTo(Duration.zero);
       }
       controller.play();
@@ -235,7 +273,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final controller = _controller;
     if (controller == null) return;
     final newPos = controller.value.position + const Duration(seconds: 10);
-    controller.seekTo(newPos > controller.value.duration ? controller.value.duration : newPos);
+    controller.seekTo(
+      newPos > controller.value.duration ? controller.value.duration : newPos,
+    );
     _startHideControlsTimer();
   }
 
@@ -252,19 +292,32 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     } else {
-      SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     }
-    setState(() { _isFullscreen = !_isFullscreen; });
+    setState(() {
+      _isFullscreen = !_isFullscreen;
+    });
   }
 
   void _switchEpisode(EpisodeModel episode) async {
     _saveProgress();
     _controller?.pause();
 
-    setState(() { _isLoading = true; _hasError = false; _episode = episode; _isCompleted = false; });
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+      _episode = episode;
+      _isCompleted = false;
+    });
 
-    final history = await _historyRepo.getEpisodeProgress(widget.storyId, episode.id);
+    final history = await _historyRepo.getEpisodeProgress(
+      widget.storyId,
+      episode.id,
+    );
     await _initializePlayer(episode.videoUrl, history?.progressSeconds);
   }
 
@@ -272,7 +325,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final h = d.inHours;
     final m = d.inMinutes.remainder(60);
     final s = d.inSeconds.remainder(60);
-    if (h > 0) return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    if (h > 0) {
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
@@ -300,12 +355,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               Expanded(child: _buildVideoArea())
             else
               _buildVideoArea(),
-              
+
             // Episode Info & List (hidden in fullscreen)
-            if (!_isFullscreen)
-              Expanded(
-                child: _buildBottomSection(),
-              ),
+            if (!_isFullscreen) Expanded(child: _buildBottomSection()),
           ],
         ),
       ),
@@ -348,15 +400,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                 ),
                 // Buffering indicator
                 if (controller.value.isBuffering && !_isCompleted)
-                  const CircularProgressIndicator(color: AppColors.primaryAccent),
+                  const CircularProgressIndicator(
+                    color: AppColors.primaryAccent,
+                  ),
                 // Completion overlay
-                if (_isCompleted) _buildCompletionOverlay()
+                if (_isCompleted)
+                  _buildCompletionOverlay()
                 // Controls overlay
-                else 
+                else
                   AnimatedOpacity(
                     opacity: _showControls ? 1.0 : 0.0,
                     duration: const Duration(milliseconds: 300),
-                    child: _showControls || controller.value.isPlaying ? _buildControlsOverlay(controller) : const SizedBox.shrink(),
+                    child: _showControls || controller.value.isPlaying
+                        ? _buildControlsOverlay(controller)
+                        : const SizedBox.shrink(),
                   ),
               ],
             ),
@@ -368,7 +425,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
   Widget _buildCompletionOverlay() {
     final currentIndex = _allEpisodes.indexWhere((ep) => ep.id == _episode?.id);
-    final isLastEpisode = currentIndex == -1 || currentIndex == _allEpisodes.length - 1;
+    final isLastEpisode =
+        currentIndex == -1 || currentIndex == _allEpisodes.length - 1;
 
     return Container(
       color: Colors.black87,
@@ -378,7 +436,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
           children: [
             Text(
               isLastEpisode ? 'Story Completed' : 'Episode Completed',
-              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 24),
             Row(
@@ -386,13 +448,17 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               children: [
                 if (!isLastEpisode)
                   ElevatedButton.icon(
-                    onPressed: () => _switchEpisode(_allEpisodes[currentIndex + 1]),
+                    onPressed: () =>
+                        _switchEpisode(_allEpisodes[currentIndex + 1]),
                     icon: const Icon(Icons.skip_next),
                     label: const Text('Next Episode'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryAccent,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 if (isLastEpisode)
@@ -400,14 +466,19 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                     onPressed: () {
                       _controller?.seekTo(Duration.zero);
                       _controller?.play();
-                      setState(() { _isCompleted = false; });
+                      setState(() {
+                        _isCompleted = false;
+                      });
                     },
                     icon: const Icon(Icons.replay),
                     label: const Text('Watch Again'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryAccent,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 const SizedBox(width: 16),
@@ -422,7 +493,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -460,7 +534,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                   onPressed: () {
                     _saveProgress();
                     Navigator.of(context).pop();
@@ -469,13 +547,21 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                 Expanded(
                   child: Text(
                     _episode?.title ?? 'Video Player',
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
-                  icon: Icon(_isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen, color: Colors.white, size: 24),
+                  icon: Icon(
+                    _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                   onPressed: _toggleFullscreen,
                 ),
               ],
@@ -489,7 +575,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               _controlButton(Icons.replay_10, _seekBackward, size: 36),
               const SizedBox(width: 32),
               _controlButton(
-                isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                isPlaying
+                    ? Icons.pause_circle_filled
+                    : Icons.play_circle_filled,
                 _togglePlayPause,
                 size: 56,
               ),
@@ -503,7 +591,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Text(_formatDuration(position), style: const TextStyle(color: Colors.white, fontSize: 12)),
+                Text(
+                  _formatDuration(position),
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: SliderTheme(
@@ -511,24 +602,38 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                       activeTrackColor: AppColors.primaryAccent,
                       inactiveTrackColor: Colors.white24,
                       thumbColor: AppColors.primaryAccent,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6,
+                      ),
                       trackHeight: 3,
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 12,
+                      ),
                     ),
                     child: Slider(
                       value: duration.inMilliseconds > 0
-                          ? position.inMilliseconds.toDouble().clamp(0, duration.inMilliseconds.toDouble())
+                          ? position.inMilliseconds.toDouble().clamp(
+                              0,
+                              duration.inMilliseconds.toDouble(),
+                            )
                           : 0,
-                      max: duration.inMilliseconds > 0 ? duration.inMilliseconds.toDouble() : 1,
+                      max: duration.inMilliseconds > 0
+                          ? duration.inMilliseconds.toDouble()
+                          : 1,
                       onChanged: (value) {
-                        controller.seekTo(Duration(milliseconds: value.toInt()));
+                        controller.seekTo(
+                          Duration(milliseconds: value.toInt()),
+                        );
                         _startHideControlsTimer();
                       },
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(_formatDuration(duration), style: const TextStyle(color: Colors.white, fontSize: 12)),
+                Text(
+                  _formatDuration(duration),
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -555,7 +660,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
           children: [
             CircularProgressIndicator(color: AppColors.primaryAccent),
             SizedBox(height: 16),
-            Text('Loading video...', style: TextStyle(color: AppColors.secondaryText, fontSize: 14)),
+            Text(
+              'Loading video...',
+              style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
+            ),
           ],
         ),
       ),
@@ -570,9 +678,17 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: AppColors.primaryAccent, size: 48),
+            const Icon(
+              Icons.error_outline,
+              color: AppColors.primaryAccent,
+              size: 48,
+            ),
             const SizedBox(height: 16),
-            Text(_errorMessage, style: const TextStyle(color: Colors.white, fontSize: 14), textAlign: TextAlign.center),
+            Text(
+              _errorMessage,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -584,7 +700,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryAccent,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -595,7 +713,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ],
@@ -621,38 +741,68 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                 if (_episode != null) ...[
                   Text(
                     'Episode ${_episode!.episodeNumber}',
-                    style: const TextStyle(color: AppColors.primaryAccent, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    style: const TextStyle(
+                      color: AppColors.primaryAccent,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _episode!.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  if ((_controller?.value.isInitialized ?? false) && _controller!.value.duration.inSeconds > 0)
+                  if ((_controller?.value.isInitialized ?? false) &&
+                      _controller!.value.duration.inSeconds > 0)
                     Text(
                       _formatDuration(_controller!.value.duration),
-                      style: const TextStyle(color: AppColors.mutedText, fontSize: 14, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        color: AppColors.mutedText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     )
                   else if (_episode!.duration > 0)
                     Text(
                       _episode!.formattedDuration,
-                      style: const TextStyle(color: AppColors.mutedText, fontSize: 14, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        color: AppColors.mutedText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     )
                   else
                     const Text(
                       'Duration unavailable',
-                      style: TextStyle(color: AppColors.mutedText, fontSize: 14, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        color: AppColors.mutedText,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   const SizedBox(height: 24),
                   const Text(
                     'Description',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _episode!.description,
-                    style: const TextStyle(color: AppColors.secondaryText, fontSize: 15, height: 1.6),
+                    style: const TextStyle(
+                      color: AppColors.secondaryText,
+                      fontSize: 15,
+                      height: 1.6,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 40),
@@ -660,11 +810,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                 if (_allEpisodes.isNotEmpty) ...[
                   const Text(
                     'Episodes',
-                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  ..._allEpisodes
-                      .map((ep) => _buildEpisodeItem(ep)),
+                  ..._allEpisodes.map((ep) => _buildEpisodeItem(ep)),
                 ],
               ],
             ),
@@ -683,9 +836,13 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primaryAccent.withValues(alpha: 0.1) : AppColors.primarySurface,
+          color: isActive
+              ? AppColors.primaryAccent.withValues(alpha: 0.1)
+              : AppColors.primarySurface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isActive ? AppColors.primaryAccent : AppColors.border),
+          border: Border.all(
+            color: isActive ? AppColors.primaryAccent : AppColors.border,
+          ),
         ),
         child: Row(
           children: [
@@ -695,12 +852,17 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               decoration: BoxDecoration(
                 color: AppColors.secondarySurface,
                 borderRadius: BorderRadius.circular(8),
-                image: episode.thumbnailUrl.isNotEmpty 
-                    ? DecorationImage(image: NetworkImage(episode.thumbnailUrl), fit: BoxFit.cover)
+                image: episode.thumbnailUrl.isNotEmpty
+                    ? DecorationImage(
+                        image: NetworkImage(episode.thumbnailUrl),
+                        fit: BoxFit.cover,
+                      )
                     : null,
               ),
-              child: episode.thumbnailUrl.isEmpty 
-                  ? const Center(child: Icon(Icons.image, color: AppColors.mutedText))
+              child: episode.thumbnailUrl.isEmpty
+                  ? const Center(
+                      child: Icon(Icons.image, color: AppColors.mutedText),
+                    )
                   : null,
             ),
             const SizedBox(width: 16),
@@ -711,18 +873,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                   Text(
                     'Episode ${episode.episodeNumber}',
                     style: TextStyle(
-                      color: isActive ? AppColors.primaryAccent : AppColors.secondaryText, 
-                      fontSize: 12, 
-                      fontWeight: FontWeight.bold
+                      color: isActive
+                          ? AppColors.primaryAccent
+                          : AppColors.secondaryText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     episode.title,
                     style: TextStyle(
-                      color: isActive ? Colors.white : Colors.white70, 
-                      fontSize: 15, 
-                      fontWeight: FontWeight.w600
+                      color: isActive ? Colors.white : Colors.white70,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -731,16 +895,27 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                     const SizedBox(height: 4),
                     Text(
                       episode.formattedDuration,
-                      style: const TextStyle(color: AppColors.mutedText, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.mutedText,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
             if (isActive)
-              const Icon(Icons.pause_circle_filled, color: AppColors.primaryAccent, size: 28)
+              const Icon(
+                Icons.pause_circle_filled,
+                color: AppColors.primaryAccent,
+                size: 28,
+              )
             else
-              const Icon(Icons.play_circle_outline, color: AppColors.mutedText, size: 28),
+              const Icon(
+                Icons.play_circle_outline,
+                color: AppColors.mutedText,
+                size: 28,
+              ),
           ],
         ),
       ),

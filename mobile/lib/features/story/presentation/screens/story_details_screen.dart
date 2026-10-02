@@ -8,7 +8,8 @@ import 'package:storyverse/features/story/presentation/providers/story_provider.
 import 'package:storyverse/features/library/data/library_repository.dart';
 import 'package:storyverse/features/story/data/comment_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:storyverse/core/widgets/skeleton_loader.dart' as storyverse_skeleton;
+import 'package:storyverse/core/widgets/skeleton_loader.dart'
+    as storyverse_skeleton;
 
 class StoryDetailsScreen extends ConsumerStatefulWidget {
   final String storyId;
@@ -120,21 +121,24 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
               const SizedBox(height: 12),
               const Text(
                 'Please check your connection and try again.',
-                style: TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: () => ref.invalidate(storyDetailsProvider(widget.storyId)),
+                onPressed: () =>
+                    ref.invalidate(storyDetailsProvider(widget.storyId)),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryAccent,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
               ),
             ],
@@ -328,9 +332,15 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                       Text(
                         story.fullDescription ?? story.description,
                         style: TextStyle(
-                          color: story.categoryId == 'ai-generated' ? Colors.white : AppColors.secondaryText,
-                          fontSize: story.categoryId == 'ai-generated' ? 16 : 14,
-                          height: story.categoryId == 'ai-generated' ? 1.8 : 1.6,
+                          color: story.categoryId == 'ai-generated'
+                              ? Colors.white
+                              : AppColors.secondaryText,
+                          fontSize: story.categoryId == 'ai-generated'
+                              ? 16
+                              : 14,
+                          height: story.categoryId == 'ai-generated'
+                              ? 1.8
+                              : 1.6,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -366,7 +376,8 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                       // Action buttons
                       Row(
                         children: [
-                          if (story.categoryId == 'ai-generated') const Spacer(),
+                          if (story.categoryId == 'ai-generated')
+                            const Spacer(),
                           if (story.categoryId != 'ai-generated') ...[
                             Expanded(
                               child: ElevatedButton.icon(
@@ -378,10 +389,16 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                     );
                                   }
                                 },
-                                icon: const Icon(Icons.play_arrow_rounded, size: 24),
+                                icon: const Icon(
+                                  Icons.play_arrow_rounded,
+                                  size: 24,
+                                ),
                                 label: const Text(
                                   'Start Watching',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primaryAccent,
@@ -393,7 +410,8 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   elevation: 8,
-                                  shadowColor: AppColors.primaryAccent.withOpacity(0.4),
+                                  shadowColor: AppColors.primaryAccent
+                                      .withValues(alpha: 0.4),
                                 ),
                               ),
                             ),
@@ -455,192 +473,202 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
               ),
               if (story.categoryId != 'ai-generated')
                 episodesAsync.when(
-                loading: () => SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: storyverse_skeleton.SkeletonLoader(height: 100, borderRadius: 16),
-                    ),
-                    childCount: 3,
-                  ),
-                ),
-                error: (e, st) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Icon(Icons.error_outline, color: AppColors.secondaryText),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Something went wrong loading episodes.',
-                            style: TextStyle(color: AppColors.secondaryText),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                data: (episodes) {
-                  if (episodes.isEmpty) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Center(
-                          child: Text(
-                            'No episodes yet',
-                            style: TextStyle(color: AppColors.secondaryText),
-                          ),
+                  loading: () => SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: storyverse_skeleton.SkeletonLoader(
+                          height: 100,
+                          borderRadius: 16,
                         ),
                       ),
-                    );
-                  }
-                  return SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      return Consumer(
-                        builder: (context, ref, _) {
-                          final ep = episodes[index];
-                          final progressAsync = ref.watch(
-                            watchHistoryProgressProvider(
-                              '${widget.storyId}||${ep.id}',
+                      childCount: 3,
+                    ),
+                  ),
+                  error: (e, st) => SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              color: AppColors.secondaryText,
                             ),
-                          );
-
-                          return InkWell(
-                            onTap: () => context.push(
-                              '/player/${widget.storyId}/${ep.id}',
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Something went wrong loading episodes.',
+                              style: TextStyle(color: AppColors.secondaryText),
                             ),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.primarySurface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppColors.border),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: NetworkImageWithFallback(
-                                      imageUrl: ep.thumbnailUrl,
-                                      width: 100,
-                                      height: 70,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Episode ${ep.episodeNumber}',
-                                          style: const TextStyle(
-                                            color: AppColors.primaryAccent,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          ep.title,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          ep.description,
-                                          style: const TextStyle(
-                                            color: AppColors.secondaryText,
-                                            fontSize: 12,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              ep.formattedDuration,
-                                              style: const TextStyle(
-                                                color: AppColors.mutedText,
-                                                fontSize: 11,
-                                              ),
-                                            ),
-                                            progressAsync.when(
-                                              data: (history) {
-                                                if (history == null ||
-                                                    history.percentage <= 0) {
-                                                  return const SizedBox.shrink();
-                                                }
-                                                return Row(
-                                                  children: [
-                                                    SizedBox(
-                                                      width: 60,
-                                                      height: 4,
-                                                      child:
-                                                          LinearProgressIndicator(
-                                                            value: history
-                                                                .percentage,
-                                                            backgroundColor:
-                                                                Colors.white24,
-                                                            color: AppColors
-                                                                .primaryAccent,
-                                                          ),
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      '${(history.percentage * 100).toInt()}%',
-                                                      style: const TextStyle(
-                                                        color: AppColors
-                                                            .primaryAccent,
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                              loading: () =>
-                                                  const SizedBox.shrink(),
-                                              error: (_, _) =>
-                                                  const SizedBox.shrink(),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(
-                                    Icons.play_circle_outline,
-                                    color: AppColors.primaryAccent,
-                                    size: 28,
-                                  ),
-                                ],
-                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  data: (episodes) {
+                    if (episodes.isEmpty) {
+                      return const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(
+                            child: Text(
+                              'No episodes yet',
+                              style: TextStyle(color: AppColors.secondaryText),
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       );
-                    }, childCount: episodes.length > 5 ? 5 : episodes.length),
-                  );
-                },
-              ),
+                    }
+                    return SliverList(
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        return Consumer(
+                          builder: (context, ref, _) {
+                            final ep = episodes[index];
+                            final progressAsync = ref.watch(
+                              watchHistoryProgressProvider(
+                                '${widget.storyId}||${ep.id}',
+                              ),
+                            );
+
+                            return InkWell(
+                              onTap: () => context.push(
+                                '/player/${widget.storyId}/${ep.id}',
+                              ),
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 6,
+                                ),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primarySurface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: NetworkImageWithFallback(
+                                        imageUrl: ep.thumbnailUrl,
+                                        width: 100,
+                                        height: 70,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Episode ${ep.episodeNumber}',
+                                            style: const TextStyle(
+                                              color: AppColors.primaryAccent,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            ep.title,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            ep.description,
+                                            style: const TextStyle(
+                                              color: AppColors.secondaryText,
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                ep.formattedDuration,
+                                                style: const TextStyle(
+                                                  color: AppColors.mutedText,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                              progressAsync.when(
+                                                data: (history) {
+                                                  if (history == null ||
+                                                      history.percentage <= 0) {
+                                                    return const SizedBox.shrink();
+                                                  }
+                                                  return Row(
+                                                    children: [
+                                                      SizedBox(
+                                                        width: 60,
+                                                        height: 4,
+                                                        child:
+                                                            LinearProgressIndicator(
+                                                              value: history
+                                                                  .percentage,
+                                                              backgroundColor:
+                                                                  Colors
+                                                                      .white24,
+                                                              color: AppColors
+                                                                  .primaryAccent,
+                                                            ),
+                                                      ),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        '${(history.percentage * 100).toInt()}%',
+                                                        style: const TextStyle(
+                                                          color: AppColors
+                                                              .primaryAccent,
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                                loading: () =>
+                                                    const SizedBox.shrink(),
+                                                error: (_, _) =>
+                                                    const SizedBox.shrink(),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Icon(
+                                      Icons.play_circle_outline,
+                                      color: AppColors.primaryAccent,
+                                      size: 28,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      }, childCount: episodes.length > 5 ? 5 : episodes.length),
+                    );
+                  },
+                ),
               // Comments section
               SliverToBoxAdapter(
                 child: Padding(

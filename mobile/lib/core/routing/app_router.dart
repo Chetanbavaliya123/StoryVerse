@@ -24,15 +24,23 @@ import 'package:storyverse/features/ai/presentation/screens/ai_assistant_screen.
 import 'package:storyverse/features/ai/presentation/screens/ai_generator_screen.dart';
 import 'package:storyverse/features/ai/presentation/screens/ai_result_screen.dart';
 
-final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-final GlobalKey<NavigatorState> _homeNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'home');
-final GlobalKey<NavigatorState> _searchNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'search');
-final GlobalKey<NavigatorState> _libraryNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'library');
-final GlobalKey<NavigatorState> _profileNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'profile');
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'root',
+);
+final GlobalKey<NavigatorState> _homeNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'home',
+);
+final GlobalKey<NavigatorState> _searchNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'search',
+);
+final GlobalKey<NavigatorState> _libraryNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'library');
+final GlobalKey<NavigatorState> _profileNavigatorKey =
+    GlobalKey<NavigatorState>(debugLabel: 'profile');
 
 CustomTransitionPage _buildPageWithTransition({
-  required BuildContext context, 
-  required GoRouterState state, 
+  required BuildContext context,
+  required GoRouterState state,
   required Widget child,
   bool slideUp = false,
 }) {
@@ -42,14 +50,14 @@ CustomTransitionPage _buildPageWithTransition({
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       if (slideUp) {
         return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0.0, 0.05),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-          child: FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+          position:
+              Tween<Offset>(
+                begin: const Offset(0.0, 0.05),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+          child: FadeTransition(opacity: animation, child: child),
         );
       }
       return FadeTransition(
@@ -69,7 +77,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     redirect: (context, state) {
       if (authState.isLoading || !authState.hasValue) {
-        return null; 
+        return null;
       }
 
       final isAuth = authState.value != null;
@@ -128,8 +136,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) {
           final storyId = state.pathParameters['id']!;
           return _buildPageWithTransition(
-            context: context, 
-            state: state, 
+            context: context,
+            state: state,
             child: StoryDetailsScreen(storyId: storyId),
             slideUp: true,
           );
@@ -142,8 +150,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) {
               final storyId = state.pathParameters['id']!;
               return _buildPageWithTransition(
-                context: context, 
-                state: state, 
+                context: context,
+                state: state,
                 child: EpisodesScreen(storyId: storyId),
                 slideUp: true,
               );
@@ -159,8 +167,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final storyId = state.pathParameters['storyId']!;
           final episodeId = state.pathParameters['episodeId']!;
           return _buildPageWithTransition(
-            context: context, 
-            state: state, 
+            context: context,
+            state: state,
             child: VideoPlayerScreen(storyId: storyId, episodeId: episodeId),
           );
         },
@@ -176,8 +184,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/ai',
         name: 'aiHub',
         pageBuilder: (context, state) => _buildPageWithTransition(
-          context: context, 
-          state: state, 
+          context: context,
+          state: state,
           child: const AiHubScreen(),
           slideUp: true,
         ),
@@ -201,14 +209,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) {
               final generationId = state.uri.queryParameters['id'] ?? '';
               return _buildPageWithTransition(
-                context: context, 
-                state: state, 
+                context: context,
+                state: state,
                 child: AiResultScreen(generationId: generationId),
                 slideUp: true,
               );
             },
           ),
-        ]
+        ],
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,

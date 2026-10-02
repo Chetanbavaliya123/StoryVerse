@@ -26,7 +26,8 @@ class StoryCard extends StatefulWidget {
   State<StoryCard> createState() => _StoryCardState();
 }
 
-class _StoryCardState extends State<StoryCard> with SingleTickerProviderStateMixin {
+class _StoryCardState extends State<StoryCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
 
@@ -37,9 +38,10 @@ class _StoryCardState extends State<StoryCard> with SingleTickerProviderStateMix
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -86,10 +88,10 @@ class _StoryCardState extends State<StoryCard> with SingleTickerProviderStateMix
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
-                    )
+                    ),
                   ],
                 ),
                 child: ClipRRect(
@@ -108,8 +110,8 @@ class _StoryCardState extends State<StoryCard> with SingleTickerProviderStateMix
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.1),
-                              Colors.black.withOpacity(0.7),
+                              Colors.black.withValues(alpha: 0.1),
+                              Colors.black.withValues(alpha: 0.7),
                             ],
                             stops: const [0.4, 0.7, 1.0],
                           ),
@@ -176,13 +178,13 @@ class _StoryCardState extends State<StoryCard> with SingleTickerProviderStateMix
           decoration: BoxDecoration(
             color: AppColors.primarySurface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border.withOpacity(0.5)),
+            border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
-              )
+              ),
             ],
           ),
           child: Row(
@@ -228,7 +230,8 @@ class _StoryCardState extends State<StoryCard> with SingleTickerProviderStateMix
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        widget.subtitle ?? '${widget.story.episodeCount} Episodes',
+                        widget.subtitle ??
+                            '${widget.story.episodeCount} Episodes',
                         style: const TextStyle(
                           color: AppColors.secondaryText,
                           fontSize: 13,

@@ -44,8 +44,12 @@ class UserModel {
       'email': email,
       'photoUrl': photoUrl,
       'role': role,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
-      'lastActiveAt': lastActiveAt != null ? Timestamp.fromDate(lastActiveAt!) : FieldValue.serverTimestamp(),
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
+      'lastActiveAt': lastActiveAt != null
+          ? Timestamp.fromDate(lastActiveAt!)
+          : FieldValue.serverTimestamp(),
       'isBlocked': isBlocked,
       'preferences': preferences,
     };

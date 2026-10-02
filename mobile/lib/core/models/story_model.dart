@@ -64,7 +64,8 @@ class StoryModel {
       tags: List<String>.from(data['tags'] ?? []),
       author: data['author'] ?? '',
       status: data['status'] ?? 'draft',
-      episodeCount: (data['totalEpisodes'] ?? data['episodeCount'] ?? 0).toInt(),
+      episodeCount: (data['totalEpisodes'] ?? data['episodeCount'] ?? 0)
+          .toInt(),
       views: (data['totalViews'] ?? data['views'] ?? 0).toInt(),
       rating: (data['rating'] ?? 0).toDouble(),
       isDemo: data['isDemo'] ?? false,
@@ -91,7 +92,8 @@ class StoryModel {
       tags: List<String>.from(data['tags'] ?? []),
       author: data['author'] ?? '',
       status: data['status'] ?? 'draft',
-      episodeCount: (data['totalEpisodes'] ?? data['episodeCount'] ?? 0).toInt(),
+      episodeCount: (data['totalEpisodes'] ?? data['episodeCount'] ?? 0)
+          .toInt(),
       views: (data['totalViews'] ?? data['views'] ?? 0).toInt(),
       rating: (data['rating'] ?? 0).toDouble(),
       isDemo: data['isDemo'] ?? false,

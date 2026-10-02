@@ -3,16 +3,21 @@ import 'dart:io';
 void main() {
   final file = File('admin/seed.dart');
   final content = file.readAsStringSync();
-  
+
   final startStr = 'final _demoStories = <Map<String, dynamic>>[';
   final start = content.indexOf(startStr);
   final end = content.indexOf('];', start) + 2;
-  final demoStories = content.substring(start, end).replaceFirst('final _demoStories', 'final List<Map<String, dynamic>> rawDemoStories');
-  
+  final demoStories = content
+      .substring(start, end)
+      .replaceFirst(
+        'final _demoStories',
+        'final List<Map<String, dynamic>> rawDemoStories',
+      );
+
   final vStart = content.indexOf('const _videos = [');
   final vEnd = content.indexOf('];', vStart) + 2;
   final videos = content.substring(vStart, vEnd);
-  
+
   final funcs = '''
 String _thumb(int seed) {
   if (seed > 100) {
@@ -31,7 +36,8 @@ String _banner(int seed) {
 }
 ''';
 
-  final out = '''import 'package:storyverse/core/models/story_model.dart';
+  final out =
+      '''import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/core/models/episode_model.dart';
 
 $videos

@@ -16,14 +16,16 @@ final favoriteStoriesProvider = FutureProvider<List<StoryModel>>((ref) async {
 
   final storyRepo = ref.read(storyRepositoryProvider);
   List<StoryModel> stories = [];
-  
+
   var docs = snapshot.docs;
   docs.sort((a, b) {
-    final aDate = (a.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-    final bDate = (b.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+    final aDate =
+        (a.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+    final bDate =
+        (b.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
     return bDate.compareTo(aDate);
   });
-  
+
   for (var doc in docs) {
     final storyId = doc.data()['storyId'] as String?;
     if (storyId != null) {
@@ -36,7 +38,9 @@ final favoriteStoriesProvider = FutureProvider<List<StoryModel>>((ref) async {
   return stories;
 });
 
-final watchHistoryStoriesProvider = FutureProvider<List<StoryModel>>((ref) async {
+final watchHistoryStoriesProvider = FutureProvider<List<StoryModel>>((
+  ref,
+) async {
   // For demo purposes, we will return some trending stories as history
   // since real tracking isn't fully implemented yet
   return ref.watch(storyRepositoryProvider).getStories(limit: 5);
@@ -54,14 +58,16 @@ final libraryStoriesProvider = FutureProvider<List<StoryModel>>((ref) async {
 
   final storyRepo = ref.read(storyRepositoryProvider);
   List<StoryModel> stories = [];
-  
+
   var docs = snapshot.docs;
   docs.sort((a, b) {
-    final aDate = (a.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-    final bDate = (b.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+    final aDate =
+        (a.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+    final bDate =
+        (b.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
     return bDate.compareTo(aDate);
   });
-  
+
   for (var doc in docs) {
     final storyId = doc.data()['storyId'] as String?;
     if (storyId != null) {

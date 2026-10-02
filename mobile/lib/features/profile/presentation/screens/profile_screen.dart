@@ -12,9 +12,10 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
-  
+
   @override
   void initState() {
     super.initState();
@@ -23,16 +24,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       duration: const Duration(milliseconds: 800),
     )..forward();
   }
-  
+
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
   }
 
+  String _getInitials(User? user) {
+    if (user?.displayName != null && user!.displayName!.trim().isNotEmpty) {
+      return user.displayName!.trim()[0].toUpperCase();
+    }
+    if (user?.email != null && user!.email!.trim().isNotEmpty) {
+      return user.email!.trim()[0].toUpperCase();
+    }
+    return '?';
+  }
+
+  String _getDisplayName(User? user) {
+    if (user?.displayName != null && user!.displayName!.trim().isNotEmpty) {
+      return user.displayName!;
+    }
+    if (user?.email != null && user!.email!.trim().isNotEmpty) {
+      return user.email!.split('@').first;
+    }
+    return 'Storyverse User';
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final hasPhoto =
+        user?.photoURL != null && user!.photoURL!.trim().isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
@@ -60,7 +83,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AppColors.primaryAccent.withOpacity(0.2),
+                    AppColors.primaryAccent.withValues(alpha: 0.2),
                     AppColors.primaryBackground,
                   ],
                 ),
@@ -72,10 +95,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                     height: 100,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primaryAccent, width: 3),
+                      border: Border.all(
+                        color: AppColors.primaryAccent,
+                        width: 3,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryAccent.withOpacity(0.3),
+                          color: AppColors.primaryAccent.withValues(alpha: 0.3),
                           blurRadius: 20,
                           spreadRadius: 5,
                         ),
@@ -84,10 +110,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                     child: CircleAvatar(
                       radius: 47,
                       backgroundColor: AppColors.primarySurface,
-                      backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-                      child: user?.photoURL == null
+                      backgroundImage: hasPhoto
+                          ? NetworkImage(user.photoURL!)
+                          : null,
+                      child: !hasPhoto
                           ? Text(
-                              (user?.displayName ?? user?.email ?? '?')[0].toUpperCase(),
+                              _getInitials(user),
                               style: const TextStyle(
                                 fontSize: 40,
                                 fontWeight: FontWeight.bold,
@@ -99,7 +127,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    user?.displayName ?? user?.email?.split('@').first ?? 'Storyverse User',
+                    _getDisplayName(user),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -116,7 +144,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   ),
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primarySurface,
                       borderRadius: BorderRadius.circular(20),
@@ -127,7 +158,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                       children: [
                         Icon(Icons.star, color: Colors.amber, size: 16),
                         SizedBox(width: 8),
-                        Text('Premium Member', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text(
+                          'Premium Member',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -144,23 +182,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                     child: _buildSectionGroup(
                       title: 'Account',
                       children: [
-                        _buildListTile(Icons.person_outline, 'Personal Information'),
-                        _buildListTile(Icons.payment_outlined, 'Subscription & Billing'),
-                        _buildListTile(Icons.security_outlined, 'Security & Privacy'),
+                        _buildListTile(
+                          Icons.person_outline,
+                          'Personal Information',
+                        ),
+                        _buildListTile(
+                          Icons.payment_outlined,
+                          'Subscription & Billing',
+                        ),
+                        _buildListTile(
+                          Icons.security_outlined,
+                          'Security & Privacy',
+                        ),
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   _buildAnimatedSection(
                     index: 1,
                     child: _buildSectionGroup(
                       title: 'Preferences',
                       children: [
-                        _buildListTile(Icons.notifications_outlined, 'Notifications'),
-                        _buildListTile(Icons.language_outlined, 'Language & Region'),
-                        _buildListTile(Icons.dark_mode_outlined, 'Theme Settings'),
+                        _buildListTile(
+                          Icons.notifications_outlined,
+                          'Notifications',
+                        ),
+                        _buildListTile(
+                          Icons.language_outlined,
+                          'Language & Region',
+                        ),
+                        _buildListTile(
+                          Icons.dark_mode_outlined,
+                          'Theme Settings',
+                        ),
                       ],
                     ),
                   ),
@@ -173,12 +229,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                       title: 'Tools',
                       children: [
                         _buildListTile(
-                          Icons.auto_awesome, 
-                          'AI Story Hub', 
+                          Icons.auto_awesome,
+                          'AI Story Hub',
                           isAccent: true,
                           onTap: () => context.push('/ai'),
                         ),
-                        _buildListTile(Icons.history_rounded, 'Viewing History', onTap: () => context.push('/library')),
+                        _buildListTile(
+                          Icons.history_rounded,
+                          'Viewing History',
+                          onTap: () => context.push('/library'),
+                        ),
                       ],
                     ),
                   ),
@@ -193,11 +253,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                         _buildListTile(Icons.help_outline, 'Help Center'),
                         _buildListTile(Icons.info_outline, 'About StoryVerse'),
                         _buildListTile(
-                          Icons.logout_rounded, 
-                          'Log Out', 
+                          Icons.logout_rounded,
+                          'Log Out',
                           isDestructive: true,
                           onTap: () async {
-                            await ref.read(authControllerProvider.notifier).signOut();
+                            await ref
+                                .read(authControllerProvider.notifier)
+                                .signOut();
                           },
                         ),
                       ],
@@ -220,15 +282,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
     );
 
     return SlideTransition(
-      position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(animation),
-      child: FadeTransition(
-        opacity: animation,
-        child: child,
-      ),
+      position: Tween<Offset>(
+        begin: const Offset(0, 0.2),
+        end: Offset.zero,
+      ).animate(animation),
+      child: FadeTransition(opacity: animation, child: child),
     );
   }
 
-  Widget _buildSectionGroup({required String title, required List<Widget> children}) {
+  Widget _buildSectionGroup({
+    required String title,
+    required List<Widget> children,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -244,45 +309,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
             ),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.primarySurface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            children: [
-              for (int i = 0; i < children.length; i++) ...[
-                children[i],
-                if (i < children.length - 1)
-                  const Divider(height: 1, thickness: 1, color: AppColors.border, indent: 56),
+        Material(
+          color: AppColors.primarySurface,
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.antiAlias,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                for (int i = 0; i < children.length; i++) ...[
+                  children[i],
+                  if (i < children.length - 1)
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: AppColors.border,
+                      indent: 56,
+                    ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildListTile(IconData icon, String title, {VoidCallback? onTap, bool isDestructive = false, bool isAccent = false}) {
-    final color = isDestructive 
-        ? AppColors.primaryAccent 
+  Widget _buildListTile(
+    IconData icon,
+    String title, {
+    VoidCallback? onTap,
+    bool isDestructive = false,
+    bool isAccent = false,
+  }) {
+    final color = isDestructive
+        ? AppColors.primaryAccent
         : (isAccent ? Colors.amber : Colors.white);
-        
+
     return ListTile(
-      onTap: onTap ?? () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$title is coming soon!'),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      },
+      onTap:
+          onTap ??
+          () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$title is coming soon!'),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          },
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: isDestructive ? AppColors.primaryAccent.withOpacity(0.1) : (isAccent ? Colors.amber.withOpacity(0.1) : AppColors.secondarySurface),
+          color: isDestructive
+              ? AppColors.primaryAccent.withValues(alpha: 0.1)
+              : (isAccent
+                    ? Colors.amber.withValues(alpha: 0.1)
+                    : AppColors.secondarySurface),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: color, size: 20),
@@ -295,7 +383,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
           fontWeight: isAccent ? FontWeight.bold : FontWeight.normal,
         ),
       ),
-      trailing: isDestructive ? null : const Icon(Icons.chevron_right, color: AppColors.secondaryText, size: 20),
+      trailing: isDestructive
+          ? null
+          : const Icon(
+              Icons.chevron_right,
+              color: AppColors.secondaryText,
+              size: 20,
+            ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }

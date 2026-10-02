@@ -26,7 +26,7 @@ void main() async {
     for (var ep in episodes.docs) {
       final data = ep.data();
       final String videoUrl = data['videoUrl'] ?? '';
-      
+
       if (videoUrl.contains('youtube.com') || videoUrl.contains('youtu.be')) {
         final newUrl = _videos[videoIndex % _videos.length];
         await ep.reference.update({'videoUrl': newUrl});

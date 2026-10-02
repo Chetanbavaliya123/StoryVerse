@@ -18,17 +18,17 @@ class MainScaffold extends StatelessWidget {
           margin: const EdgeInsets.only(left: 24, right: 24, bottom: 16),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.primarySurface.withOpacity(0.9),
+            color: AppColors.primarySurface.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.5),
+                color: Colors.black.withValues(alpha: 0.5),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
-              )
+              ),
             ],
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               width: 1,
             ),
           ),
@@ -102,7 +102,9 @@ class _AnimatedNavItem extends StatelessWidget {
           vertical: 8,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryAccent.withOpacity(0.15) : Colors.transparent,
+          color: isSelected
+              ? AppColors.primaryAccent.withValues(alpha: 0.15)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -119,7 +121,9 @@ class _AnimatedNavItem extends StatelessWidget {
                   child: Text(
                     label,
                     style: TextStyle(
-                      color: isSelected ? AppColors.primaryAccent : Colors.transparent,
+                      color: isSelected
+                          ? AppColors.primaryAccent
+                          : Colors.transparent,
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                     ),
@@ -154,7 +158,7 @@ class _AnimatedNavItem extends StatelessWidget {
         ),
       );
     }
-    
+
     return Icon(
       icon,
       color: isSelected ? AppColors.primaryAccent : AppColors.secondaryText,

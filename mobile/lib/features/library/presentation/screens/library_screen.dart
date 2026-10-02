@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
-import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
-import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/empty_state.dart';
@@ -15,7 +13,8 @@ class LibraryScreen extends ConsumerStatefulWidget {
   ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTickerProviderStateMixin {
+class _LibraryScreenState extends ConsumerState<LibraryScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -80,7 +79,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
             child: Container(
               height: 44,
               decoration: BoxDecoration(
@@ -96,7 +98,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
                 indicatorSize: TabBarIndicatorSize.tab,
                 labelColor: Colors.white,
                 unselectedLabelColor: AppColors.secondaryText,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
                 dividerColor: Colors.transparent,
                 splashBorderRadius: BorderRadius.circular(22),
                 tabs: const [
@@ -171,10 +176,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
           itemCount: stories.length,
           itemBuilder: (context, index) {
             final story = stories[index];
-            return StoryCard(
-              story: story,
-              isHorizontal: true,
-            );
+            return StoryCard(story: story, isHorizontal: true);
           },
         );
       },
@@ -196,7 +198,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
           return const EmptyState(
             icon: Icons.bookmark_border_rounded,
             title: 'Your Library is Empty',
-            message: 'Save AI generated stories or download episodes to access them here.',
+            message:
+                'Save AI generated stories or download episodes to access them here.',
           );
         }
         return ListView.builder(
@@ -207,7 +210,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> with SingleTicker
             return StoryCard(
               story: story,
               isHorizontal: true,
-              subtitle: story.categoryId == 'ai-generated' ? 'Generated AI Story' : 'Saved to Library',
+              subtitle: story.categoryId == 'ai-generated'
+                  ? 'Generated AI Story'
+                  : 'Saved to Library',
             );
           },
         );

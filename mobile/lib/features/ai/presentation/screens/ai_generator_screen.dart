@@ -12,7 +12,8 @@ class AiGeneratorScreen extends ConsumerStatefulWidget {
   ConsumerState<AiGeneratorScreen> createState() => _AiGeneratorScreenState();
 }
 
-class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with SingleTickerProviderStateMixin {
+class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
+    with SingleTickerProviderStateMixin {
   final _promptController = TextEditingController();
   String _selectedGenre = 'Fantasy';
   String _selectedLanguage = 'English';
@@ -20,7 +21,14 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
 
-  final _genres = ['Fantasy', 'Sci-Fi', 'Mystery', 'Romance', 'Horror', 'Adventure'];
+  final _genres = [
+    'Fantasy',
+    'Sci-Fi',
+    'Mystery',
+    'Romance',
+    'Horror',
+    'Adventure',
+  ];
 
   @override
   void initState() {
@@ -30,42 +38,65 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
       duration: const Duration(seconds: 2),
     );
     _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOutSine),
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOutSine,
+      ),
     );
   }
 
   void _generate() async {
     final prompt = _promptController.text.trim();
     if (prompt.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a prompt')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter a prompt')));
       return;
     }
+
+    if (_isGenerating) return;
+
+    debugPrint('[AI] SEND pressed');
+    final stopwatch = Stopwatch()..start();
 
     setState(() => _isGenerating = true);
     _animationController.repeat(reverse: true);
 
     try {
-      final genId = await ref.read(aiRepositoryProvider).generateStory(
-        userId: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
-        prompt: prompt,
-        genre: _selectedGenre,
-        language: _selectedLanguage,
+      debugPrint('[AI] Calling generateStory in repository');
+      final genId = await ref
+          .read(aiRepositoryProvider)
+          .generateStory(
+            userId: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
+            prompt: prompt,
+            genre: _selectedGenre,
+            language: _selectedLanguage,
+          );
+
+      debugPrint(
+        '[AI] Generation successful, genId: $genId. Elapsed: ${stopwatch.elapsedMilliseconds}ms',
       );
-      
       if (mounted) {
         context.pushReplacement('/ai/result?id=$genId');
       }
     } catch (e) {
+      debugPrint(
+        '[AI] Generation failed: $e. Elapsed: ${stopwatch.elapsedMilliseconds}ms',
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
+    } finally {
+      debugPrint(
+        '[AI] Resetting loading state. Elapsed: ${stopwatch.elapsedMilliseconds}ms',
+      );
       if (mounted) {
         setState(() {
           _isGenerating = false;
           _animationController.stop();
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Generation failed: $e')),
-        );
       }
     }
   }
@@ -92,14 +123,23 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
           children: [
             Icon(Icons.auto_awesome, color: AppColors.primaryAccent, size: 20),
             SizedBox(width: 8),
-            Text('AI Story Hub', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'AI Story Hub',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
       body: Column(
         children: [
           Expanded(
-            child: _isGenerating ? _buildGeneratingState() : _buildWelcomeState(),
+            child: _isGenerating
+                ? _buildGeneratingState()
+                : _buildWelcomeState(),
           ),
           _buildInputArea(),
         ],
@@ -120,18 +160,30 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
                 color: AppColors.primaryAccent.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.auto_awesome, color: AppColors.primaryAccent, size: 48),
+              child: const Icon(
+                Icons.auto_awesome,
+                color: AppColors.primaryAccent,
+                size: 48,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
               'What story should we tell today?',
-              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             const Text(
               'Describe the story, characters, or world you want to explore. I will generate a unique interactive experience for you.',
-              style: TextStyle(color: AppColors.secondaryText, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: AppColors.secondaryText,
+                fontSize: 14,
+                height: 1.5,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -152,9 +204,19 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
           children: [
             Row(
               children: [
-                _buildDropdown('Genre', _selectedGenre, _genres, (val) => setState(() => _selectedGenre = val!)),
+                _buildDropdown(
+                  'Genre',
+                  _selectedGenre,
+                  _genres,
+                  (val) => setState(() => _selectedGenre = val!),
+                ),
                 const SizedBox(width: 12),
-                _buildDropdown('Language', _selectedLanguage, ['English', 'Hindi'], (val) => setState(() => _selectedLanguage = val!)),
+                _buildDropdown(
+                  'Language',
+                  _selectedLanguage,
+                  ['English', 'Hindi'],
+                  (val) => setState(() => _selectedLanguage = val!),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -177,7 +239,10 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
                         hintText: 'Type your prompt here...',
                         hintStyle: TextStyle(color: AppColors.mutedText),
                         border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -188,10 +253,16 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: _isGenerating ? AppColors.mutedText : AppColors.primaryAccent,
+                      color: _isGenerating
+                          ? AppColors.mutedText
+                          : AppColors.primaryAccent,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.send, color: Colors.white, size: 20),
+                    child: const Icon(
+                      Icons.send,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ],
@@ -202,7 +273,12 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
     );
   }
 
-  Widget _buildDropdown(String label, String value, List<String> items, Function(String?) onChanged) {
+  Widget _buildDropdown(
+    String label,
+    String value,
+    List<String> items,
+    Function(String?) onChanged,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
@@ -213,10 +289,20 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.secondaryText, size: 16),
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            color: AppColors.secondaryText,
+            size: 16,
+          ),
           dropdownColor: AppColors.primarySurface,
-          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+          items: items
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .toList(),
           onChanged: onChanged,
         ),
       ),
@@ -248,7 +334,11 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen> with Sing
                     ),
                   ),
                   child: const Center(
-                    child: Icon(Icons.auto_awesome, color: Colors.white, size: 40),
+                    child: Icon(
+                      Icons.auto_awesome,
+                      color: Colors.white,
+                      size: 40,
+                    ),
                   ),
                 ),
               );

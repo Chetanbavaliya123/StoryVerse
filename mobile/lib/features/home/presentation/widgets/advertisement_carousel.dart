@@ -28,7 +28,8 @@ class _AdvertisementCarouselState extends State<AdvertisementCarousel> {
   void _startAdTimer() {
     _adTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (_adController.hasClients && widget.advertisements.isNotEmpty) {
-        _currentAdIndex = ((_currentAdIndex + 1) % widget.advertisements.length).toInt();
+        _currentAdIndex = ((_currentAdIndex + 1) % widget.advertisements.length)
+            .toInt();
         _adController.animateToPage(
           _currentAdIndex,
           duration: const Duration(milliseconds: 500),
@@ -62,10 +63,7 @@ class _AdvertisementCarouselState extends State<AdvertisementCarousel> {
         itemBuilder: (context, index) {
           final ad = widget.advertisements[index];
           return Container(
-            margin: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
@@ -83,7 +81,10 @@ class _AdvertisementCarouselState extends State<AdvertisementCarousel> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(16),
                     child: ad.imageUrl != null
-                        ? NetworkImageWithFallback(imageUrl: ad.imageUrl!, fit: BoxFit.cover)
+                        ? NetworkImageWithFallback(
+                            imageUrl: ad.imageUrl!,
+                            fit: BoxFit.cover,
+                          )
                         : const SizedBox.shrink(),
                   ),
                 ),
@@ -155,9 +156,7 @@ class _AdvertisementCarouselState extends State<AdvertisementCarousel> {
                         ),
                         child: Text(
                           ad.ctaText ?? 'Learn More',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],

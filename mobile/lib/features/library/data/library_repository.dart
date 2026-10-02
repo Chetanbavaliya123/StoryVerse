@@ -16,16 +16,29 @@ class LibraryRepository {
     final user = _auth.currentUser;
     if (user == null) return Stream.value(false);
 
-    return _firestore.collection('users').doc(user.uid).collection('favorites').doc(storyId).snapshots().map((doc) => doc.exists);
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(storyId)
+        .snapshots()
+        .map((doc) => doc.exists);
   }
 
   Future<void> toggleFavorite(String storyId, bool isAdding) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final ref = _firestore.collection('users').doc(user.uid).collection('favorites').doc(storyId);
+    final ref = _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('favorites')
+        .doc(storyId);
     if (isAdding) {
-      await ref.set({'addedAt': FieldValue.serverTimestamp(), 'storyId': storyId});
+      await ref.set({
+        'addedAt': FieldValue.serverTimestamp(),
+        'storyId': storyId,
+      });
     } else {
       await ref.delete();
     }
@@ -35,16 +48,29 @@ class LibraryRepository {
     final user = _auth.currentUser;
     if (user == null) return Stream.value(false);
 
-    return _firestore.collection('users').doc(user.uid).collection('library').doc(storyId).snapshots().map((doc) => doc.exists);
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('library')
+        .doc(storyId)
+        .snapshots()
+        .map((doc) => doc.exists);
   }
 
   Future<void> toggleLibrary(String storyId, bool isAdding) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final ref = _firestore.collection('users').doc(user.uid).collection('library').doc(storyId);
+    final ref = _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('library')
+        .doc(storyId);
     if (isAdding) {
-      await ref.set({'addedAt': FieldValue.serverTimestamp(), 'storyId': storyId});
+      await ref.set({
+        'addedAt': FieldValue.serverTimestamp(),
+        'storyId': storyId,
+      });
     } else {
       await ref.delete();
     }
