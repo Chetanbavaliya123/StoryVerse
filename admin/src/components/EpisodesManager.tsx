@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { collection, query, onSnapshot, doc, deleteDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { supabase } from '../lib/supabase';
+import * as tus from 'tus-js-client';
 import { Plus, Edit, Trash2, X, Image as ImageIcon, Video, UploadCloud, Link as LinkIcon, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function EpisodesManager({ storyId }: { storyId: string }) {
@@ -133,57 +134,71 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
       const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `videos/${Date.now()}-${safeFileName}`;
 
-      // Simulate a generic progress since standard upload doesn't have progress callback
-      setVideoUploadProgress(10);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      setVideoUploadProgress(50);
-
-      const { error } = await supabase.storage
-        .from('storyverse-media')
-        .upload(filePath, file, {
-          contentType: file.type || 'video/mp4',
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) {
-        console.error("Supabase Upload Error Diagnostic:", {
-          operation: "Upload MP4 Video",
-          bucket: "storyverse-media",
-          fileName: file.name,
-          fileSize: file.size,
-          fileMimeType: file.type,
-          uploadPath: filePath,
-          errorMessage: error.message,
-          errorName: error.name
-        });
-        throw error;
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Supabase credentials missing for upload.");
       }
 
-      setVideoUploadProgress(100);
+      // Check if user has a Supabase auth session (optional, but good for RLS)
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token || supabaseKey;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('storyverse-media')
-        .getPublicUrl(filePath);
+      const upload = new tus.Upload(file, {
+        endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${authToken}`,
+          apikey: supabaseKey,
+          'x-upsert': 'false',
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        metadata: {
+          bucketName: 'storyverse-media',
+          objectName: filePath,
+          contentType: file.type || 'video/mp4',
+          cacheControl: '3600',
+        },
+        chunkSize: 6 * 1024 * 1024, // 6MB
+        onError: function (error) {
+          console.error("TUS Upload failed:", error);
+          setErrorMsg(`Upload failed [Network error]: ${error.message || 'Please check your connection.'}`);
+          setIsUploadingVideo(false);
+        },
+        onProgress: function (bytesUploaded, bytesTotal) {
+          const percentage = (bytesUploaded / bytesTotal) * 100;
+          setVideoUploadProgress(percentage);
+        },
+        onSuccess: function () {
+          const { data: { publicUrl } } = supabase.storage
+            .from('storyverse-media')
+            .getPublicUrl(filePath);
 
-      setFormData(prev => ({
-        ...prev,
-        videoUrl: publicUrl,
-        storagePath: filePath,
-        sourceType: 'uploaded'
-      }));
-      setSuccessMsg("Video uploaded successfully.");
-      setTimeout(() => setSuccessMsg(''), 3000);
-      setIsUploadingVideo(false);
+          setFormData(prev => ({
+            ...prev,
+            videoUrl: publicUrl,
+            storagePath: filePath,
+            sourceType: 'uploaded'
+          }));
+          setSuccessMsg("Video uploaded successfully.");
+          setTimeout(() => setSuccessMsg(''), 3000);
+          setIsUploadingVideo(false);
+        }
+      });
+
+      // Start the upload
+      upload.findPreviousUploads().then((previousUploads) => {
+        if (previousUploads.length) {
+          upload.resumeFromPreviousUpload(previousUploads[0]);
+        }
+        upload.start();
+      });
+
     } catch (err: any) {
       console.error("Upload preparation failed:", err);
-      let errorCategory = "Network/Storage Error";
-      if (err.message && err.message.toLowerCase().includes('mime')) errorCategory = "Unsupported file type";
-      else if (err.message && err.message.toLowerCase().includes('fetch')) errorCategory = "Network error";
-      else if (err.message && err.message.toLowerCase().includes('permission')) errorCategory = "Storage permission error";
-      else if (err.message && err.message.toLowerCase().includes('bucket')) errorCategory = "Bucket error";
-      
-      setErrorMsg(`Upload failed [${errorCategory}]: ${err.message || 'Please check your connection and try again.'}`);
+      setErrorMsg(`Upload failed: ${err.message || 'Please check your connection and try again.'}`);
       setIsUploadingVideo(false);
     }
   };
