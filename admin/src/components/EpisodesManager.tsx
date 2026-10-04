@@ -136,15 +136,11 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
       // Simulate a generic progress since standard upload doesn't have progress callback
       setVideoUploadProgress(10);
 
-      // Mobile browser fix: Convert File to ArrayBuffer to avoid failed uploads
-      // on Android Chrome when using Supabase JS client.
-      const fileBuffer = await file.arrayBuffer();
-      
       setVideoUploadProgress(50);
 
       const { error } = await supabase.storage
         .from('storyverse-media')
-        .upload(filePath, fileBuffer, {
+        .upload(filePath, file, {
           contentType: file.type || 'video/mp4',
           cacheControl: '3600',
           upsert: false
@@ -266,11 +262,9 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
         const fileName = `${Date.now()}_${thumbnailFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
         const filePath = `stories/${storyId}/episodes/${draftId}/thumbnail/${fileName}`;
         
-        const fileBuffer = await thumbnailFile.arrayBuffer();
-        
         const { error: uploadError } = await supabase.storage
           .from('storyverse-media')
-          .upload(filePath, fileBuffer, {
+          .upload(filePath, thumbnailFile, {
             contentType: thumbnailFile.type || 'image/jpeg',
             cacheControl: '3600',
             upsert: false
