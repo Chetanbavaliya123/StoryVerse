@@ -134,12 +134,8 @@ export default function EpisodesManager({ storyId }: { storyId: string }) {
       const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `videos/${Date.now()}-${safeFileName}`;
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Supabase credentials missing for upload.");
-      }
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://isqxomfulycmxccbvfyi.supabase.co';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_S2am5rwWRBOzl0p1efGwRA_xY3zrcFJ';
 
       // Check if user has a Supabase auth session (optional, but good for RLS)
       const { data: { session } } = await supabase.auth.getSession();
