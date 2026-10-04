@@ -9,18 +9,8 @@ class AppConfig {
     if (envUrl.isNotEmpty) {
       return envUrl;
     }
-    // For release builds, we must use API_URL. If missing, return empty.
-    if (kReleaseMode) {
-      return '';
-    }
-
-    // Safe fallback for local development if no --dart-define is provided
-    if (kIsWeb) {
-      return 'http://localhost:3000/api';
-    }
-    if (Platform.isAndroid) {
-      return 'http://10.0.2.2:3000/api';
-    }
+    // Safe fallback for USB debugging.
+    // We use adb reverse tcp:3000 tcp:3000 to tunnel the device's localhost to the laptop.
     return 'http://localhost:3000/api';
   }
 }

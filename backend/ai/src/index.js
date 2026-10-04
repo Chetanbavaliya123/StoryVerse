@@ -273,6 +273,6 @@ Do NOT repeat the opening paragraph inside the chapters. Ensure character names 
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`StoryVerse AI Backend listening on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`StoryVerse AI Backend listening on 0.0.0.0:${PORT}`);
 });
