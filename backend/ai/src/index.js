@@ -5,10 +5,15 @@ const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Initialize Firebase Admin SDK
-// This relies on GOOGLE_APPLICATION_CREDENTIALS environment variable
-// or standard Firebase deployment environments.
 try {
-  admin.initializeApp();
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+  } else {
+    admin.initializeApp();
+  }
 } catch (e) {
   console.error("Firebase Admin initialization error:", e.message);
 }
