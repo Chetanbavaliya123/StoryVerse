@@ -222,7 +222,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/discover',
         name: 'discover',
-        builder: (context, state) => const DiscoverScreen(),
+        builder: (context, state) {
+          final genre = state.uri.queryParameters['genre'];
+          final language = state.uri.queryParameters['language'];
+          final category = state.uri.queryParameters['category'];
+          return DiscoverScreen(
+            initialGenre: genre,
+            initialLanguage: language,
+            initialCategory: category,
+          );
+        },
       ),
       // Bottom Navigation Shell
       StatefulShellRoute.indexedStack(

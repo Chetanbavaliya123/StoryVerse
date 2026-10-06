@@ -41,6 +41,60 @@ final allStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
   });
 });
 
+final popularStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
+  final catalogAsync = ref.watch(masterCatalogProvider);
+  return catalogAsync.whenData((catalog) {
+    var sorted = List<StoryModel>.from(catalog);
+    sorted.sort((a, b) => b.views.compareTo(a.views));
+    return sorted.take(20).toList();
+  });
+});
+
+final topTenStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
+  final catalogAsync = ref.watch(masterCatalogProvider);
+  return catalogAsync.whenData((catalog) {
+    var sorted = List<StoryModel>.from(catalog);
+    // Rank by a mix of views and rating, or just rating if views are 0
+    sorted.sort((a, b) {
+      double scoreA = a.views + (a.rating * 100);
+      double scoreB = b.views + (b.rating * 100);
+      return scoreB.compareTo(scoreA);
+    });
+    return sorted.take(10).toList();
+  });
+});
+
+final storiesByLanguageProvider = Provider.family<AsyncValue<List<StoryModel>>, String>((ref, language) {
+  final catalogAsync = ref.watch(masterCatalogProvider);
+  return catalogAsync.whenData((catalog) {
+    return catalog.where((s) => s.language.trim().toLowerCase() == language.trim().toLowerCase()).toList();
+  });
+});
+
+final storiesByMultiFilterProvider = Provider.family<AsyncValue<List<StoryModel>>, Map<String, String?>>((ref, filters) {
+  final catalogAsync = ref.watch(masterCatalogProvider);
+  return catalogAsync.whenData((catalog) {
+    var filtered = List<StoryModel>.from(catalog);
+    
+    final genre = filters['genre'];
+    if (genre != null && genre.isNotEmpty) {
+      filtered = filtered.where((s) => s.genreId.toLowerCase() == genre.toLowerCase()).toList();
+    }
+    
+    final language = filters['language'];
+    if (language != null && language.isNotEmpty) {
+      filtered = filtered.where((s) => s.language.trim().toLowerCase() == language.trim().toLowerCase()).toList();
+    }
+    
+    final category = filters['category'];
+    if (category != null && category.isNotEmpty) {
+      filtered = filtered.where((s) => s.categoryId.toLowerCase() == category.toLowerCase()).toList();
+    }
+    
+    return filtered;
+  });
+});
+
 final storyDetailsProvider = FutureProvider.family<StoryModel?, String>((
   ref,
   id,

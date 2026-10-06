@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:storyverse/core/theme/app_colors.dart';
-import 'package:storyverse/core/widgets/app_text_field.dart';
-import 'package:storyverse/core/widgets/storyverse_logo.dart';
 import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+
+import 'onboarding/design_tokens.dart';
+import 'login/login_background.dart';
+import 'login/premium_text_field.dart';
+import 'login/premium_primary_button.dart';
+import 'login/google_sign_in_button.dart';
+import 'login/glass_toast.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,19 +18,62 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isPasswordVisible = false;
+
+  late final AnimationController _entryController;
+  late final AnimationController _exitController;
+
+  bool _isExiting = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
+    _exitController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _entryController.forward();
+    });
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: OBTokens.bgDeep,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _entryController.dispose();
+    _exitController.dispose();
     super.dispose();
   }
 
   void _onSignIn() {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      showGlassToast(context, message: 'Please enter both email and password.');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
     ref
         .read(authControllerProvider.notifier)
         .signInWithEmailAndPassword(
@@ -36,313 +83,543 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _onGoogleSignIn() {
+    FocusScope.of(context).unfocus();
     ref.read(authControllerProvider.notifier).signInWithGoogle();
+  }
+
+  String _getFriendlyErrorMessage(dynamic error) {
+    final errorString = error.toString();
+    if (errorString.contains('invalid-credential') ||
+        errorString.contains('wrong-password') ||
+        errorString.contains('user-not-found')) {
+      return 'Invalid email or password.';
+    } else if (errorString.contains('too-many-requests')) {
+      return 'Too many failed attempts. Try again later.';
+    } else if (errorString.contains('user-disabled')) {
+      return 'Account disabled. Contact support.';
+    } else if (errorString.contains('invalid-email')) {
+      return 'Please enter a valid email address.';
+    } else if (errorString.contains('network-request-failed')) {
+      return 'Network error. Please check your connection.';
+    }
+    return 'An error occurred during sign in.';
+  }
+
+  void _navigateToSignUp() {
+    context.pushReplacement('/signup');
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authControllerProvider, (previous, next) {
+      if (next.hasError && !next.isLoading) {
+        showGlassToast(
+          context,
+          message: _getFriendlyErrorMessage(next.error),
+          actionLabel: 'RETRY',
+          onAction: _onSignIn,
+        );
+      } else if (!next.hasError &&
+          !next.isLoading &&
+          previous?.isLoading == true) {
+        if (!_isExiting && mounted) {
+          setState(() => _isExiting = true);
+          _exitController.forward();
+        }
+      }
+    });
+
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
 
-    return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: const StoryVerseLogo(size: 28),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'STORYVERSE',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2.4, // 0.2em
-                color: AppColors.primaryText,
-              ),
-            ),
-            const Text(
-              '.',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2.4,
-                color: AppColors.primaryAccent,
-              ),
-            ),
-          ],
-        ),
-        centerTitle: false,
-        actions: [
-          TextButton(
-            onPressed: () {},
-            style: TextButton.styleFrom(foregroundColor: AppColors.mutedText),
-            child: const Text(
-              'Help',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Welcome back',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryText,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Sign in to continue your storytelling journey',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.secondaryText,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+    // UI state based on keyboard
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    // On short screens (e.g. <640px) we treat it aggressively like keyboard open to save space
+    final isShortScreen = MediaQuery.of(context).size.height < 640;
+    final compactMode = isKeyboardOpen || isShortScreen;
 
-                  if (authState.hasError)
+    return ListenableBuilder(
+      listenable: Listenable.merge([_emailController, _passwordController]),
+      builder: (context, _) {
+        final hasContent =
+            _emailController.text.isNotEmpty &&
+            _passwordController.text.isNotEmpty;
+
+        return Scaffold(
+          backgroundColor: OBTokens.bgDeep,
+          // IMPORTANT: Let the column handle the layout flexibly when keyboard opens
+          resizeToAvoidBottomInset: true,
+          body: AnimatedBuilder(
+            animation: _exitController,
+            builder: (context, child) {
+              if (_exitController.value > 0) {
+                final exitScale = 1.0 + _exitController.value * 0.05;
+                final exitOpacity = 1.0 - _exitController.value;
+
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.darkAccent.withValues(alpha: 0.1),
-                        border: Border.all(color: AppColors.primaryAccent),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        authState.error.toString(),
-                        style: const TextStyle(
-                          color: AppColors.primaryAccent,
-                          fontSize: 12,
-                        ),
+                      color: Color.lerp(
+                        OBTokens.bgDeep,
+                        OBTokens.crimsonStart.withValues(alpha: 0.2),
+                        (_exitController.value * 2).clamp(0.0, 1.0),
                       ),
                     ),
+                    Transform.scale(
+                      scale: exitScale,
+                      child: Opacity(
+                        opacity: exitOpacity.clamp(0.0, 1.0),
+                        child: child!,
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return child!;
+            },
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Layer 1: Background
+                FadeTransition(
+                  opacity: CurvedAnimation(
+                    parent: _entryController,
+                    curve: const Interval(0.0, 0.4),
+                  ),
+                  child: const LoginBackground(),
+                ),
 
-                  const Text(
-                    'EMAIL ADDRESS',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.mutedText,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  AppTextField(
-                    hintText: 'you@example.com',
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    prefixIcon: const Icon(
-                      Icons.mail_outline,
-                      color: AppColors.mutedText,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                // Layer 2: Main Layout (Fixed, no scroll)
+                SafeArea(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: OBTokens.spaceLG,
+                        ),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: OBTokens.spaceSM),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'PASSWORD',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.mutedText,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          context.push('/forgot-password');
-                        },
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.secondaryText,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  AppTextField(
-                    hintText: 'Enter your password',
-                    controller: _passwordController,
-                    obscureText: !_isPasswordVisible,
-                    prefixIcon: const Icon(
-                      Icons.lock_outline,
-                      color: AppColors.mutedText,
-                      size: 20,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isPasswordVisible
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: AppColors.mutedText,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isPasswordVisible = !_isPasswordVisible;
-                        });
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : _onSignIn,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryAccent,
-                        foregroundColor: AppColors.primaryText,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
+                            // 1. Top Brand Row
+                            FadeTransition(
+                              opacity: CurvedAnimation(
+                                parent: _entryController,
+                                curve: const Interval(0.0, 0.5),
                               ),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Sign In',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                              child: AnimatedScale(
+                                scale: compactMode ? 0.8 : 1.0,
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeOutCubic,
+                                child: _buildBrandRow(),
+                              ),
+                            ),
+
+                            // 2. Flexible spacer (flex 1)
+                            Spacer(flex: compactMode ? 1 : 1),
+
+                            // 3. Heading + Subtitle
+                            SlideTransition(
+                              position:
+                                  Tween<Offset>(
+                                    begin: const Offset(0, 0.5),
+                                    end: Offset.zero,
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: _entryController,
+                                      curve: const Interval(
+                                        0.2,
+                                        0.7,
+                                        curve: Curves.easeOutCubic,
+                                      ),
+                                    ),
+                                  ),
+                              child: FadeTransition(
+                                opacity: CurvedAnimation(
+                                  parent: _entryController,
+                                  curve: const Interval(0.2, 0.7),
+                                ),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      AnimatedDefaultTextStyle(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: compactMode ? 26 : 32,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.6,
+                                          color: OBTokens.textPrimary,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text('Welcome '),
+                                            ShaderMask(
+                                              shaderCallback: (bounds) =>
+                                                  const LinearGradient(
+                                                    colors: [
+                                                      OBTokens.crimsonStart,
+                                                      OBTokens.crimsonEnd,
+                                                    ],
+                                                  ).createShader(bounds),
+                                              child: const Text(
+                                                'back',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      AnimatedSize(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        curve: Curves.easeOutCubic,
+                                        alignment: Alignment.topCenter,
+                                        child: AnimatedOpacity(
+                                          duration: const Duration(
+                                            milliseconds: 200,
+                                          ),
+                                          opacity: compactMode ? 0.0 : 1.0,
+                                          child: compactMode
+                                              ? const SizedBox.shrink()
+                                              : const Padding(
+                                                  padding: EdgeInsets.only(
+                                                    top: 8,
+                                                  ),
+                                                  child: Text(
+                                                    'Sign in to continue your storytelling journey',
+                                                    style: TextStyle(
+                                                      fontSize: 15,
+                                                      height: 1.5,
+                                                      color: OBTokens.textMuted,
+                                                    ),
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                SizedBox(width: 8),
-                                Icon(Icons.arrow_forward, size: 16),
-                              ],
+                              ),
                             ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 28),
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: AppColors.border)),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text(
-                          'OR CONTINUE WITH',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.mutedText,
-                            letterSpacing: 1.0,
-                          ),
+                            SizedBox(height: compactMode ? 16 : 32),
+
+                            // 4. Fields
+                            SlideTransition(
+                              position:
+                                  Tween<Offset>(
+                                    begin: const Offset(0, 0.5),
+                                    end: Offset.zero,
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: _entryController,
+                                      curve: const Interval(
+                                        0.3,
+                                        0.8,
+                                        curve: Curves.easeOutCubic,
+                                      ),
+                                    ),
+                                  ),
+                              child: FadeTransition(
+                                opacity: CurvedAnimation(
+                                  parent: _entryController,
+                                  curve: const Interval(0.3, 0.8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    PremiumTextField(
+                                      label: 'EMAIL ADDRESS',
+                                      controller: _emailController,
+                                      icon: Icons.mail_outline_rounded,
+                                      hintText: 'Enter your email',
+                                      keyboardType: TextInputType.emailAddress,
+                                      textInputAction: TextInputAction.next,
+                                      autofillHints: const [
+                                        AutofillHints.email,
+                                      ],
+                                      validator: (val) {
+                                        if (val == null || val.isEmpty) {
+                                          return null;
+                                        }
+                                        if (!val.contains('@') ||
+                                            !val.contains('.')) {
+                                          return 'Invalid email format';
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    PremiumTextField(
+                                      label: 'PASSWORD',
+                                      controller: _passwordController,
+                                      icon: Icons.lock_outline_rounded,
+                                      hintText: 'Enter your password',
+                                      isPassword: true,
+                                      textInputAction: TextInputAction.done,
+                                      autofillHints: const [
+                                        AutofillHints.password,
+                                      ],
+                                      onFieldSubmitted: (_) => _onSignIn(),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // 5. Forgot Password
+                                    GestureDetector(
+                                      onTap: () =>
+                                          context.push('/forgot-password'),
+                                      behavior: HitTestBehavior.opaque,
+                                      child: const Text(
+                                        'Forgot password?',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: OBTokens.crimsonStart,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            SizedBox(height: compactMode ? 24 : 32),
+
+                            // 6. Sign In Button
+                            SlideTransition(
+                              position:
+                                  Tween<Offset>(
+                                    begin: const Offset(0, 0.5),
+                                    end: Offset.zero,
+                                  ).animate(
+                                    CurvedAnimation(
+                                      parent: _entryController,
+                                      curve: const Interval(
+                                        0.4,
+                                        0.9,
+                                        curve: Curves.easeOutCubic,
+                                      ),
+                                    ),
+                                  ),
+                              child: FadeTransition(
+                                opacity: CurvedAnimation(
+                                  parent: _entryController,
+                                  curve: const Interval(0.4, 0.9),
+                                ),
+                                child: PremiumPrimaryButton(
+                                  text: 'Sign In',
+                                  isLoading: isLoading,
+                                  isDisabled: !hasContent,
+                                  onPressed: _onSignIn,
+                                ),
+                              ),
+                            ),
+
+                            // 7 & 8. Google section (Hide when compact)
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeOutCubic,
+                              alignment: Alignment.topCenter,
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: compactMode ? 0.0 : 1.0,
+                                child: compactMode
+                                    ? const SizedBox.shrink()
+                                    : SlideTransition(
+                                        position:
+                                            Tween<Offset>(
+                                              begin: const Offset(0, 0.5),
+                                              end: Offset.zero,
+                                            ).animate(
+                                              CurvedAnimation(
+                                                parent: _entryController,
+                                                curve: const Interval(
+                                                  0.5,
+                                                  1.0,
+                                                  curve: Curves.easeOutCubic,
+                                                ),
+                                              ),
+                                            ),
+                                        child: FadeTransition(
+                                          opacity: CurvedAnimation(
+                                            parent: _entryController,
+                                            curve: const Interval(0.5, 1.0),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              const SizedBox(height: 24),
+                                              const GradientDivider(
+                                                text: 'OR CONTINUE WITH',
+                                              ),
+                                              const SizedBox(height: 24),
+                                              GoogleSignInButton(
+                                                isLoading: isLoading,
+                                                onPressed: _onGoogleSignIn,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                              ),
+                            ),
+
+                            // 9. Flexible spacer
+                            Spacer(flex: compactMode ? 1 : 1),
+
+                            // 10. Footer
+                            FadeTransition(
+                              opacity: CurvedAnimation(
+                                parent: _entryController,
+                                curve: const Interval(0.7, 1.0),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Text(
+                                          "Don't have an account?",
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: OBTokens.textMuted,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        GestureDetector(
+                                          onTap: _navigateToSignUp,
+                                          behavior: HitTestBehavior.opaque,
+                                          child: ShaderMask(
+                                            shaderCallback: (bounds) =>
+                                                const LinearGradient(
+                                                  colors: [
+                                                    OBTokens.crimsonStart,
+                                                    OBTokens.crimsonEnd,
+                                                  ],
+                                                ).createShader(bounds),
+                                            child: const Text(
+                                              'Create account',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                                decorationColor: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    // Optional terms on tall screens
+                                    if (MediaQuery.of(context).size.height >
+                                            700 &&
+                                        !isKeyboardOpen)
+                                      const Padding(
+                                        padding: EdgeInsets.only(top: 12),
+                                        child: Text(
+                                          'By continuing, you agree to our Terms & Privacy Policy',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Color(
+                                              0xFF71717A,
+                                            ), // zinc-500
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Expanded(child: Divider(color: AppColors.border)),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton(
-                      onPressed: isLoading ? null : _onGoogleSignIn,
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: AppColors.secondaryBackground,
-                        side: const BorderSide(color: AppColors.border),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SvgPicture.string(
-                            '''<svg viewBox="0 0 24 24"><path fill="#FFFFFF" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" opacity="0.95"/><path fill="#FFFFFF" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" opacity="0.85"/><path fill="#FFFFFF" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" opacity="0.8"/><path fill="#FFFFFF" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" opacity="0.95"/></svg>''',
-                            width: 18,
-                            height: 18,
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Continue with Google',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primaryText,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBrandRow() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Compact glowing SV logo
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: OBTokens.glassWhiteFill,
+            border: Border.all(color: OBTokens.glassWhiteBorder, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: OBTokens.crimsonStart.withValues(alpha: 0.25),
+                blurRadius: 16,
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: ShaderMask(
+            shaderCallback: (bounds) => const LinearGradient(
+              colors: [OBTokens.crimsonStart, OBTokens.crimsonEnd],
+            ).createShader(bounds),
+            child: const Text(
+              'SV',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
               ),
             ),
           ),
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "Don't have an account?",
-                style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
-              ),
-              const SizedBox(width: 4),
-              GestureDetector(
-                onTap: () {
-                  context.push('/signup');
-                },
-                child: const Text(
-                  'Create Account',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primaryText,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
+        const SizedBox(width: 12),
+        // Wordmark
+        Text(
+          'STORYVERSE',
+          style: OBTokens.posterTitleStyle.copyWith(
+            fontSize: 16,
+            letterSpacing: 2.4,
+          ),
+        ),
+        Container(
+          width: 4,
+          height: 4,
+          margin: const EdgeInsets.only(left: 4, top: 8),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: OBTokens.crimsonStart,
+            boxShadow: [
+              BoxShadow(
+                color: OBTokens.crimsonStart.withValues(alpha: 0.8),
+                blurRadius: 4,
+                spreadRadius: 1,
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }

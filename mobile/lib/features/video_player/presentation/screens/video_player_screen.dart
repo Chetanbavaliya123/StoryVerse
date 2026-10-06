@@ -3,10 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
-import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/models/episode_model.dart';
 import 'package:storyverse/features/story/data/story_repository.dart';
 import 'package:storyverse/features/story/data/watch_history_repository.dart';
+
+import 'package:storyverse/core/theme/design_tokens.dart';
+import 'package:storyverse/features/video_player/presentation/widgets/premium_video_player.dart';
+import 'package:storyverse/features/video_player/presentation/widgets/player_controls_overlay.dart';
+import 'package:storyverse/features/video_player/presentation/widgets/episode_info_section.dart';
+import 'package:storyverse/features/video_player/presentation/widgets/episode_tile.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String storyId;
@@ -39,6 +46,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    WakelockPlus.enable();
     _historyRepo = ref.read(watchHistoryRepositoryProvider);
     _loadEpisode();
   }
@@ -321,15 +329,6 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     await _initializePlayer(episode.videoUrl, history?.progressSeconds);
   }
 
-  String _formatDuration(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60);
-    final s = d.inSeconds.remainder(60);
-    if (h > 0) {
-      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-    }
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
 
   @override
   void dispose() {
@@ -340,21 +339,22 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     _controller?.dispose();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    WakelockPlus.disable();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: DesignTokens.background,
       body: SafeArea(
         child: Column(
           children: [
             // Video Player Area
             if (_isFullscreen)
-              Expanded(child: _buildVideoArea())
+              Expanded(child: _buildPremiumVideoArea())
             else
-              _buildVideoArea(),
+              _buildPremiumVideoArea(),
 
             // Episode Info & List (hidden in fullscreen)
             if (!_isFullscreen) Expanded(child: _buildBottomSection()),
@@ -364,57 +364,98 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     );
   }
 
-  Widget _buildVideoArea() {
-    if (_hasError) {
-      return _buildErrorState();
-    }
+  Widget _buildPremiumVideoArea() {
+    return PremiumVideoPlayer(
+      controller: _controller,
+      thumbnailUrl: _episode?.thumbnailUrl ?? '',
+      isLoading: _isLoading,
+      hasError: _hasError,
+      errorWidget: _buildErrorState(),
+      completionOverlay: _isCompleted ? _buildCompletionOverlay() : null,
+      controlsOverlay: _controller != null
+          ? PlayerControlsOverlay(
+              controller: _controller!,
+              title: _episode?.title ?? 'Video Player',
+              showControls: _showControls,
+              isFullscreen: _isFullscreen,
+              onToggleControls: _toggleControls,
+              onTogglePlayPause: _togglePlayPause,
+              onSeekForward: _seekForward,
+              onSeekBackward: _seekBackward,
+              onToggleFullscreen: _toggleFullscreen,
+              onBack: () {
+                _saveProgress();
+                Navigator.of(context).pop();
+              },
+            )
+          : null,
+    );
+  }
 
-    if (_isLoading) {
-      return _buildLoadingState();
-    }
-
-    final controller = _controller;
-    if (controller == null || !controller.value.isInitialized) {
-      return _buildLoadingState();
-    }
-
-    return GestureDetector(
-      onTap: _toggleControls,
-      child: Container(
-        color: Colors.black,
-        width: double.infinity,
-        alignment: Alignment.center,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Stack(
-              alignment: Alignment.center,
+  Widget _buildBottomSection() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            DesignTokens.backgroundTop,
+            DesignTokens.background,
+          ],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLarge, vertical: DesignTokens.spaceLarge),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Video
-                Center(
-                  child: AspectRatio(
-                    aspectRatio: controller.value.aspectRatio,
-                    child: VideoPlayer(controller),
+                if (_episode != null)
+                  EpisodeInfoSection(
+                    episode: _episode!,
+                    duration: _controller?.value.isInitialized == true
+                        ? _controller!.value.duration
+                        : null,
                   ),
-                ),
-                // Buffering indicator
-                if (controller.value.isBuffering && !_isCompleted)
-                  const CircularProgressIndicator(
-                    color: AppColors.primaryAccent,
-                  ),
-                // Completion overlay
-                if (_isCompleted)
-                  _buildCompletionOverlay()
-                // Controls overlay
-                else
-                  AnimatedOpacity(
-                    opacity: _showControls ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: _showControls || controller.value.isPlaying
-                        ? _buildControlsOverlay(controller)
-                        : const SizedBox.shrink(),
-                  ),
+                const SizedBox(height: DesignTokens.spaceXLarge),
+                // Other episodes
+                if (_allEpisodes.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      Text(
+                        'Episodes',
+                        style: DesignTokens.sectionHeadingStyle,
+                      ),
+                      const SizedBox(width: DesignTokens.spaceSmall),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: DesignTokens.surfaceGlass,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${_allEpisodes.length}',
+                          style: DesignTokens.bodyStyle.copyWith(
+                            color: DesignTokens.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ).animate().fade(delay: 500.ms),
+                  const SizedBox(height: DesignTokens.spaceMedium),
+                  ..._allEpisodes.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final ep = entry.value;
+                    return EpisodeTile(
+                      episode: ep,
+                      isActive: ep.id == _episode?.id,
+                      onTap: () => _switchEpisode(ep),
+                    ).animate().fade(delay: Duration(milliseconds: 600 + (index * 100))).slideY(begin: 0.2, end: 0, duration: 400.ms);
+                  }),
+                ],
               ],
             ),
           ),
@@ -425,8 +466,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
   Widget _buildCompletionOverlay() {
     final currentIndex = _allEpisodes.indexWhere((ep) => ep.id == _episode?.id);
-    final isLastEpisode =
-        currentIndex == -1 || currentIndex == _allEpisodes.length - 1;
+    final isLastEpisode = currentIndex == -1 || currentIndex == _allEpisodes.length - 1;
 
     return Container(
       color: Colors.black87,
@@ -436,29 +476,22 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
           children: [
             Text(
               isLastEpisode ? 'Story Completed' : 'Episode Completed',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+              style: DesignTokens.titleStyle.copyWith(fontSize: 24),
+            ).animate().scale(),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (!isLastEpisode)
                   ElevatedButton.icon(
-                    onPressed: () =>
-                        _switchEpisode(_allEpisodes[currentIndex + 1]),
-                    icon: const Icon(Icons.skip_next),
+                    onPressed: () => _switchEpisode(_allEpisodes[currentIndex + 1]),
+                    icon: const Icon(Icons.skip_next_rounded),
                     label: const Text('Next Episode'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryAccent,
+                      backgroundColor: DesignTokens.primaryAccent,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusSmall)),
                     ),
                   ),
                 if (isLastEpisode)
@@ -470,15 +503,13 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                         _isCompleted = false;
                       });
                     },
-                    icon: const Icon(Icons.replay),
+                    icon: const Icon(Icons.replay_rounded),
                     label: const Text('Watch Again'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryAccent,
+                      backgroundColor: DesignTokens.primaryAccent,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusSmall)),
                     ),
                   ),
                 const SizedBox(width: 16),
@@ -488,182 +519,17 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                     if (_isFullscreen) _toggleFullscreen();
                     Navigator.of(context).pop();
                   },
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(Icons.arrow_back_rounded),
                   label: const Text('Back to Story'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusSmall)),
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildControlsOverlay(VideoPlayerController controller) {
-    final position = controller.value.position;
-    final duration = controller.value.duration;
-    final isPlaying = controller.value.isPlaying;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withValues(alpha: 0.7),
-            Colors.transparent,
-            Colors.transparent,
-            Colors.black.withValues(alpha: 0.8),
-          ],
-          stops: const [0.0, 0.3, 0.6, 1.0],
-        ),
-      ),
-      child: Column(
-        children: [
-          // Top bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  onPressed: () {
-                    _saveProgress();
-                    Navigator.of(context).pop();
-                  },
-                ),
-                Expanded(
-                  child: Text(
-                    _episode?.title ?? 'Video Player',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  onPressed: _toggleFullscreen,
-                ),
-              ],
-            ),
-          ),
-          // Center controls
-          const Spacer(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _controlButton(Icons.replay_10, _seekBackward, size: 36),
-              const SizedBox(width: 32),
-              _controlButton(
-                isPlaying
-                    ? Icons.pause_circle_filled
-                    : Icons.play_circle_filled,
-                _togglePlayPause,
-                size: 56,
-              ),
-              const SizedBox(width: 32),
-              _controlButton(Icons.forward_10, _seekForward, size: 36),
-            ],
-          ),
-          const Spacer(),
-          // Bottom progress bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Text(
-                  _formatDuration(position),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: AppColors.primaryAccent,
-                      inactiveTrackColor: Colors.white24,
-                      thumbColor: AppColors.primaryAccent,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 6,
-                      ),
-                      trackHeight: 3,
-                      overlayShape: const RoundSliderOverlayShape(
-                        overlayRadius: 12,
-                      ),
-                    ),
-                    child: Slider(
-                      value: duration.inMilliseconds > 0
-                          ? position.inMilliseconds.toDouble().clamp(
-                              0,
-                              duration.inMilliseconds.toDouble(),
-                            )
-                          : 0,
-                      max: duration.inMilliseconds > 0
-                          ? duration.inMilliseconds.toDouble()
-                          : 1,
-                      onChanged: (value) {
-                        controller.seekTo(
-                          Duration(milliseconds: value.toInt()),
-                        );
-                        _startHideControlsTimer();
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _formatDuration(duration),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
-
-  Widget _controlButton(IconData icon, VoidCallback onTap, {double size = 40}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Icon(icon, color: Colors.white, size: size),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Container(
-      height: 250,
-      color: Colors.black,
-      child: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: AppColors.primaryAccent),
-            SizedBox(height: 16),
-            Text(
-              'Loading video...',
-              style: TextStyle(color: AppColors.secondaryText, fontSize: 14),
-            ),
+            ).animate().fade(delay: 200.ms),
           ],
         ),
       ),
@@ -672,21 +538,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
   Widget _buildErrorState() {
     return Container(
-      height: 250,
       color: Colors.black,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.error_outline,
-              color: AppColors.primaryAccent,
+              Icons.error_outline_rounded,
+              color: DesignTokens.primaryAccent,
               size: 48,
             ),
             const SizedBox(height: 16),
             Text(
               _errorMessage,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: DesignTokens.bodyStyle.copyWith(color: DesignTokens.textPrimary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -695,227 +560,31 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
               children: [
                 ElevatedButton.icon(
                   onPressed: _loadEpisode,
-                  icon: const Icon(Icons.refresh, size: 18),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text('Retry'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryAccent,
+                    backgroundColor: DesignTokens.primaryAccent,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
                     ),
                   ),
                 ),
                 const SizedBox(width: 16),
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back, size: 18),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
                   label: const Text('Back'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white),
+                    side: const BorderSide(color: Colors.white24),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
                     ),
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomSection() {
-    return Container(
-      color: AppColors.primaryBackground,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Episode title
-                if (_episode != null) ...[
-                  Text(
-                    'Episode ${_episode!.episodeNumber}',
-                    style: const TextStyle(
-                      color: AppColors.primaryAccent,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _episode!.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if ((_controller?.value.isInitialized ?? false) &&
-                      _controller!.value.duration.inSeconds > 0)
-                    Text(
-                      _formatDuration(_controller!.value.duration),
-                      style: const TextStyle(
-                        color: AppColors.mutedText,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    )
-                  else if (_episode!.duration > 0)
-                    Text(
-                      _episode!.formattedDuration,
-                      style: const TextStyle(
-                        color: AppColors.mutedText,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    )
-                  else
-                    const Text(
-                      'Duration unavailable',
-                      style: TextStyle(
-                        color: AppColors.mutedText,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Description',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _episode!.description,
-                    style: const TextStyle(
-                      color: AppColors.secondaryText,
-                      fontSize: 15,
-                      height: 1.6,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 40),
-                // Other episodes
-                if (_allEpisodes.isNotEmpty) ...[
-                  const Text(
-                    'Episodes',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ..._allEpisodes.map((ep) => _buildEpisodeItem(ep)),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEpisodeItem(EpisodeModel episode) {
-    final isActive = episode.id == _episode?.id;
-    return InkWell(
-      onTap: isActive ? null : () => _switchEpisode(episode),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isActive
-              ? AppColors.primaryAccent.withValues(alpha: 0.1)
-              : AppColors.primarySurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isActive ? AppColors.primaryAccent : AppColors.border,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 80,
-              height: 50,
-              decoration: BoxDecoration(
-                color: AppColors.secondarySurface,
-                borderRadius: BorderRadius.circular(8),
-                image: episode.thumbnailUrl.isNotEmpty
-                    ? DecorationImage(
-                        image: NetworkImage(episode.thumbnailUrl),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: episode.thumbnailUrl.isEmpty
-                  ? const Center(
-                      child: Icon(Icons.image, color: AppColors.mutedText),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Episode ${episode.episodeNumber}',
-                    style: TextStyle(
-                      color: isActive
-                          ? AppColors.primaryAccent
-                          : AppColors.secondaryText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    episode.title,
-                    style: TextStyle(
-                      color: isActive ? Colors.white : Colors.white70,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (episode.duration > 0) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      episode.formattedDuration,
-                      style: const TextStyle(
-                        color: AppColors.mutedText,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (isActive)
-              const Icon(
-                Icons.pause_circle_filled,
-                color: AppColors.primaryAccent,
-                size: 28,
-              )
-            else
-              const Icon(
-                Icons.play_circle_outline,
-                color: AppColors.mutedText,
-                size: 28,
-              ),
           ],
         ),
       ),

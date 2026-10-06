@@ -4,6 +4,12 @@ import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/features/story/data/story_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:storyverse/features/library/data/library_repository.dart';
+
+final isFavoriteProvider = StreamProvider.family<bool, String>((ref, storyId) {
+  return ref.watch(libraryRepositoryProvider).isFavorite(storyId);
+});
+
 final favoriteStoriesProvider = FutureProvider<List<StoryModel>>((ref) async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return [];

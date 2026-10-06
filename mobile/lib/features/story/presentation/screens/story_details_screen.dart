@@ -157,15 +157,15 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
             slivers: [
               // Hero cover image
               SliverAppBar(
-                expandedHeight: 300,
+                expandedHeight: 400,
                 pinned: true,
                 backgroundColor: AppColors.primaryBackground,
                 leading: IconButton(
                   icon: Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.arrow_back,
@@ -191,10 +191,14 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                             colors: [
                               Colors.transparent,
                               AppColors.primaryBackground.withValues(
+                                alpha: 0.2,
+                              ),
+                              AppColors.primaryBackground.withValues(
                                 alpha: 0.8,
                               ),
                               AppColors.primaryBackground,
                             ],
+                            stops: const [0.0, 0.5, 0.8, 1.0],
                           ),
                         ),
                       ),
@@ -212,7 +216,7 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                       // Genre + Category
                       Row(
                         children: [
-                          _chip(story.genreId.toUpperCase()),
+                          _chip(story.genreId.toUpperCase(), isPrimary: true),
                           const SizedBox(width: 8),
                           _chip(story.categoryId.toUpperCase()),
                           const Spacer(),
@@ -221,14 +225,14 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                               const Icon(
                                 Icons.star,
                                 color: Colors.amber,
-                                size: 16,
+                                size: 18,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 '${story.rating}',
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 14,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -236,95 +240,58 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       // Title
                       Text(
                         story.title,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                          height: 1.1,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       // Author + stats
-                      Row(
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          const Icon(
-                            Icons.person_outline,
-                            color: AppColors.secondaryText,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            story.author,
-                            style: const TextStyle(
-                              color: AppColors.secondaryText,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Icon(
+                          _statItem(Icons.person_outline, story.author),
+                          _statItem(
                             Icons.visibility_outlined,
-                            color: AppColors.secondaryText,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
                             _formatViews(story.views),
-                            style: const TextStyle(
-                              color: AppColors.secondaryText,
-                              fontSize: 13,
-                            ),
                           ),
-                          const SizedBox(width: 16),
-                          const Icon(
+                          _statItem(
                             Icons.video_library_outlined,
-                            color: AppColors.secondaryText,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
                             '${story.episodeCount} ep',
-                            style: const TextStyle(
-                              color: AppColors.secondaryText,
-                              fontSize: 13,
-                            ),
                           ),
-                          const SizedBox(width: 16),
-                          const Icon(
+                          _statItem(
                             Icons.timer_outlined,
-                            color: AppColors.secondaryText,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
                             _formatDuration(story.totalDuration),
-                            style: const TextStyle(
-                              color: AppColors.secondaryText,
-                              fontSize: 13,
-                            ),
                           ),
-                          const SizedBox(width: 16),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySurface,
-                              border: Border.all(color: AppColors.border),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              story.ageCategory?.toUpperCase() ?? '',
-                              style: const TextStyle(
-                                color: AppColors.mutedText,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                          if (story.ageCategory != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primarySurface,
+                                border: Border.all(color: Colors.white24),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                story.ageCategory!.toUpperCase(),
+                                style: const TextStyle(
+                                  color: AppColors.mutedText,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -380,38 +347,65 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                             const Spacer(),
                           if (story.categoryId != 'ai-generated') ...[
                             Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  final episodes = episodesAsync.asData?.value;
-                                  if (episodes != null && episodes.isNotEmpty) {
-                                    context.push(
-                                      '/player/${widget.storyId}/${episodes.first.id}',
-                                    );
-                                  }
-                                },
-                                icon: const Icon(
-                                  Icons.play_arrow_rounded,
-                                  size: 24,
+                              child: Container(
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFE53935), // StoryVerse Red
+                                      Color(0xFFB71C1C), // Deep Red
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFFE53935,
+                                      ).withValues(alpha: 0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                                label: const Text(
-                                  'Start Watching',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    final episodes =
+                                        episodesAsync.asData?.value;
+                                    if (episodes != null &&
+                                        episodes.isNotEmpty) {
+                                      context.push(
+                                        '/player/${widget.storyId}/${episodes.first.id}',
+                                      );
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
                                   ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primaryAccent,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.play_arrow_rounded,
+                                        size: 28,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Start Watching',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  elevation: 8,
-                                  shadowColor: AppColors.primaryAccent
-                                      .withValues(alpha: 0.4),
                                 ),
                               ),
                             ),
@@ -426,7 +420,7 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                 ? AppColors.primaryAccent
                                 : Colors.white,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 12),
                           _actionIcon(
                             _isInLibrary
                                 ? Icons.bookmark
@@ -540,71 +534,84 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                               child: Container(
                                 margin: const EdgeInsets.symmetric(
                                   horizontal: 16,
-                                  vertical: 6,
+                                  vertical: 8,
                                 ),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primarySurface,
+                                  color: const Color(0xFF181818),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: AppColors.border),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.05),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
                                 child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
                                       child: NetworkImageWithFallback(
                                         imageUrl: ep.thumbnailUrl,
-                                        width: 100,
-                                        height: 70,
+                                        width: 120,
+                                        height: 80,
                                         fit: BoxFit.cover,
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: 14),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Text(
                                             'Episode ${ep.episodeNumber}',
                                             style: const TextStyle(
                                               color: AppColors.primaryAccent,
-                                              fontSize: 11,
+                                              fontSize: 12,
                                               fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
+                                          const SizedBox(height: 4),
                                           Text(
                                             ep.title,
                                             style: const TextStyle(
                                               color: Colors.white,
-                                              fontSize: 14,
+                                              fontSize: 15,
                                               fontWeight: FontWeight.w600,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                          const SizedBox(height: 2),
+                                          const SizedBox(height: 6),
                                           Text(
                                             ep.description,
                                             style: const TextStyle(
                                               color: AppColors.secondaryText,
                                               fontSize: 12,
+                                              height: 1.3,
                                             ),
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 8),
                                           Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
                                                 ep.formattedDuration,
                                                 style: const TextStyle(
                                                   color: AppColors.mutedText,
-                                                  fontSize: 11,
+                                                  fontSize: 12,
                                                 ),
                                               ),
                                               progressAsync.when(
@@ -613,34 +620,48 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                                       history.percentage <= 0) {
                                                     return const SizedBox.shrink();
                                                   }
-                                                  return Row(
-                                                    children: [
-                                                      SizedBox(
-                                                        width: 60,
-                                                        height: 4,
-                                                        child:
-                                                            LinearProgressIndicator(
+                                                  return Expanded(
+                                                    child: Row(
+                                                      children: [
+                                                        const SizedBox(
+                                                          width: 12,
+                                                        ),
+                                                        Expanded(
+                                                          child: ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  2,
+                                                                ),
+                                                            child: LinearProgressIndicator(
                                                               value: history
                                                                   .percentage,
                                                               backgroundColor:
-                                                                  Colors
-                                                                      .white24,
+                                                                  Colors.white
+                                                                      .withValues(
+                                                                        alpha:
+                                                                            0.1,
+                                                                      ),
                                                               color: AppColors
                                                                   .primaryAccent,
+                                                              minHeight: 4,
                                                             ),
-                                                      ),
-                                                      const SizedBox(width: 4),
-                                                      Text(
-                                                        '${(history.percentage * 100).toInt()}%',
-                                                        style: const TextStyle(
-                                                          color: AppColors
-                                                              .primaryAccent,
-                                                          fontSize: 10,
-                                                          fontWeight:
-                                                              FontWeight.bold,
+                                                          ),
                                                         ),
-                                                      ),
-                                                    ],
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Text(
+                                                          '${(history.percentage * 100).toInt()}%',
+                                                          style: const TextStyle(
+                                                            color: AppColors
+                                                                .primaryAccent,
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
                                                   );
                                                 },
                                                 loading: () =>
@@ -653,11 +674,26 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                         ],
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    const Icon(
-                                      Icons.play_circle_outline,
-                                      color: AppColors.primaryAccent,
-                                      size: 28,
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.play_arrow_rounded,
+                                            color: Colors.white,
+                                            size: 28,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -702,28 +738,26 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                   color: AppColors.mutedText,
                                 ),
                                 filled: true,
-                                fillColor: AppColors.primarySurface,
+                                fillColor: const Color(0xFF181818),
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(
-                                    color: AppColors.border,
-                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
                                 ),
                                 enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(
-                                    color: AppColors.border,
-                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
                                 ),
                                 focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                    color: AppColors.primaryAccent,
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide(
+                                    color: AppColors.primaryAccent.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
+                                  horizontal: 16,
+                                  vertical: 14,
                                 ),
                               ),
                             ),
@@ -805,21 +839,46 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
     );
   }
 
-  Widget _chip(String label) {
+  Widget _chip(String label, {bool isPrimary = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.primaryAccent.withValues(alpha: 0.15),
+        color: isPrimary
+            ? AppColors.primaryAccent.withValues(alpha: 0.15)
+            : const Color(0xFF181818),
+        border: Border.all(
+          color: isPrimary
+              ? AppColors.primaryAccent.withValues(alpha: 0.3)
+              : Colors.white24,
+        ),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: AppColors.primaryAccent,
+        style: TextStyle(
+          color: isPrimary ? AppColors.primaryAccent : Colors.white,
           fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+
+  Widget _statItem(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: AppColors.secondaryText, size: 16),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(
+            color: AppColors.secondaryText,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 
@@ -828,13 +887,13 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.primarySurface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          color: const Color(0xFF181818),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
-        child: Icon(icon, color: color, size: 22),
+        child: Icon(icon, color: color, size: 24),
       ),
     );
   }
