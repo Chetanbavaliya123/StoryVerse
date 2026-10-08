@@ -106,7 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   void _navigateToSignUp() {
-    context.pushReplacement('/signup');
+    context.push('/signup');
   }
 
   @override
@@ -499,9 +499,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                           ),
                                         ),
                                         const SizedBox(width: 6),
-                                        GestureDetector(
-                                          onTap: _navigateToSignUp,
-                                          behavior: HitTestBehavior.opaque,
+                                        TextButton(
+                                          onPressed: _navigateToSignUp,
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 8,
+                                            ),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                          ),
                                           child: ShaderMask(
                                             shaderCallback: (bounds) =>
                                                 const LinearGradient(

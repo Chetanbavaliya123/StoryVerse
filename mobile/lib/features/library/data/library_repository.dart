@@ -75,4 +75,40 @@ class LibraryRepository {
       await ref.delete();
     }
   }
+
+  Future<void> clearWatchHistory() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('watchHistory')
+        .get();
+        
+    final batch = _firestore.batch();
+    for (var doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<void> removeFromWatchHistory(String storyId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('watchHistory')
+        .where('storyId', isEqualTo: storyId)
+        .get();
+        
+    final batch = _firestore.batch();
+    for (var doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
 }
+

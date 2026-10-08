@@ -11,6 +11,7 @@ class StoryCard extends StatefulWidget {
   final double width;
   final double height;
   final bool isHorizontal;
+  final VoidCallback? onDelete;
 
   const StoryCard({
     super.key,
@@ -20,6 +21,7 @@ class StoryCard extends StatefulWidget {
     this.width = 140,
     this.height = 200,
     this.isHorizontal = false,
+    this.onDelete,
   });
 
   @override
@@ -67,6 +69,7 @@ class _StoryCardState extends State<StoryCard>
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         if (widget.onTap != null) {
           widget.onTap!();
@@ -153,6 +156,7 @@ class _StoryCardState extends State<StoryCard>
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         if (widget.onTap != null) {
           widget.onTap!();
@@ -163,6 +167,7 @@ class _StoryCardState extends State<StoryCard>
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: Container(
+          height: 120, // Add fixed height to prevent unbounded height crash in ListView
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
             color: const Color(0xFF181818),
@@ -186,7 +191,7 @@ class _StoryCardState extends State<StoryCard>
                 child: NetworkImageWithFallback(
                   imageUrl: widget.story.thumbnailUrl,
                   width: 100,
-                  height: double.infinity,
+                  height: 120,
                   fit: BoxFit.cover,
                 ),
               ),
@@ -229,14 +234,25 @@ class _StoryCardState extends State<StoryCard>
                   ),
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.only(right: 16.0),
-                child: Icon(
-                  Icons.play_circle_fill,
-                  color: AppColors.primaryAccent,
-                  size: 32,
+              if (widget.onDelete != null)
+                IconButton(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.redAccent,
+                    size: 28,
+                  ),
+                  onPressed: widget.onDelete,
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(right: 16.0),
+                  child: Icon(
+                    Icons.play_circle_fill,
+                    color: AppColors.primaryAccent,
+                    size: 32,
+                  ),
                 ),
-              ),
             ],
           ),
         ),

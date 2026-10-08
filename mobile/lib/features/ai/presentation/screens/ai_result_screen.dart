@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/features/ai/data/ai_repository.dart';
+import 'package:storyverse/features/library/data/library_repository.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 
 class AiResultScreen extends ConsumerStatefulWidget {
@@ -21,6 +22,14 @@ class _AiResultScreenState extends ConsumerState<AiResultScreen> {
   @override
   void initState() {
     super.initState();
+    ref
+        .read(libraryRepositoryProvider)
+        .isInLibrary(widget.generationId)
+        .listen((val) {
+      if (mounted) {
+        setState(() => _isSaved = val);
+      }
+    });
   }
 
   @override
@@ -109,6 +118,14 @@ class _AiResultScreenState extends ConsumerState<AiResultScreen> {
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'This usually takes 15-30 seconds. Please wait...',
+                    style: TextStyle(
+                      color: AppColors.primaryAccent,
+                      fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -220,77 +237,84 @@ class _AiResultScreenState extends ConsumerState<AiResultScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: (_isSaving || _isSaved)
-                          ? null
-                          : () async {
-                              setState(() => _isSaving = true);
-                              try {
-                                await ref
-                                    .read(aiRepositoryProvider)
-                                    .saveToLibrary(gen);
-                                ref.invalidate(libraryStoriesProvider);
-                                if (context.mounted) {
-                                  setState(() {
-                                    _isSaving = false;
-                                    _isSaved = true;
-                                  });
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Saved to your Library!'),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  setState(() => _isSaving = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Story could not be saved. Please try again.',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                      icon: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : _isSaved
-                          ? const Icon(Icons.check_circle)
-                          : const Icon(Icons.bookmark_add),
-                      label: Text(
-                        _isSaving
-                            ? 'Saving...'
-                            : _isSaved
-                            ? 'Saved to Library'
-                            : 'Save to Library',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isSaved
-                            ? Colors.green
-                            : AppColors.primaryAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  if (_isSaved)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: null, // Disabled because already saved
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primarySurface,
+                          disabledBackgroundColor: AppColors.primarySurface,
+                          disabledForegroundColor: AppColors.primaryAccent,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: const BorderSide(color: AppColors.primaryAccent),
+                          ),
                         ),
-                        disabledBackgroundColor: _isSaved
-                            ? Colors.green.withValues(alpha: 0.8)
-                            : AppColors.primaryAccent.withValues(alpha: 0.5),
+                        icon: const Icon(Icons.check_circle, color: AppColors.primaryAccent),
+                        label: const Text(
+                          'Saved to My Stories',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isSaving
+                            ? null
+                            : () async {
+                                setState(() => _isSaving = true);
+                                try {
+                                  await ref.read(aiRepositoryProvider).saveToLibrary(gen);
+                                  ref.invalidate(libraryStoriesProvider);
+                                  if (mounted) {
+                                    setState(() {
+                                      _isSaving = false;
+                                      _isSaved = true;
+                                    });
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Saved to your Library!')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    setState(() => _isSaving = false);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Failed to save. Try again.')),
+                                    );
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryAccent,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        icon: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.bookmark_add, color: Colors.white),
+                        label: Text(
+                          _isSaving ? 'Saving...' : 'Save to My Stories',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
                   const SizedBox(height: 32),
                 ],
               ),

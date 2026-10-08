@@ -11,57 +11,67 @@ class MainScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      extendBody: true,
+      extendBody: false, // Solid navbar should not overlap body content
       body: navigationShell,
       bottomNavigationBar: SafeArea(
+        bottom: true,
+        top: false,
         child: Container(
-          margin: const EdgeInsets.only(left: 24, right: 24, bottom: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.primarySurface.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
+            color: const Color(0xFF050505), // Matches the dark background
+            border: Border(
+              top: BorderSide(
+                color: Colors.white.withValues(alpha: 0.05),
+                width: 1,
               ),
-            ],
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.1),
-              width: 1,
             ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _AnimatedNavItem(
-                icon: Icons.home_rounded,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _NavItem(
+                  activeIcon: Icons.home,
+                inactiveIcon: Icons.home_outlined,
                 label: 'Home',
                 isSelected: navigationShell.currentIndex == 0,
                 onTap: () => _goBranch(0),
               ),
-              _AnimatedNavItem(
-                icon: Icons.search_rounded,
-                label: 'Search',
+              _NavItem(
+                activeIcon: Icons.play_circle,
+                inactiveIcon: Icons.play_circle_outline,
+                label: 'Shorts',
                 isSelected: navigationShell.currentIndex == 1,
                 onTap: () => _goBranch(1),
               ),
-              _AnimatedNavItem(
-                icon: Icons.bookmark_rounded,
-                label: 'Library',
+              _NavItem(
+                activeIcon: Icons.diamond,
+                inactiveIcon: Icons.diamond_outlined,
+                label: 'Premium',
                 isSelected: navigationShell.currentIndex == 2,
                 onTap: () => _goBranch(2),
               ),
-              _AnimatedNavItem(
-                isProfile: true,
-                label: 'Profile',
+              _NavItem(
+                activeIcon: Icons.bookmark,
+                inactiveIcon: Icons.bookmark_outline,
+                label: 'My List',
                 isSelected: navigationShell.currentIndex == 3,
                 onTap: () => _goBranch(3),
+              ),
+              _NavItem(
+                activeIcon: Icons.sentiment_satisfied_alt,
+                inactiveIcon: Icons.sentiment_satisfied_alt,
+                isProfile: true,
+                label: 'Profile',
+                isSelected: navigationShell.currentIndex == 4,
+                onTap: () => _goBranch(4),
               ),
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -74,15 +84,17 @@ class MainScaffold extends StatelessWidget {
   }
 }
 
-class _AnimatedNavItem extends StatelessWidget {
-  final IconData? icon;
+class _NavItem extends StatelessWidget {
+  final IconData? activeIcon;
+  final IconData? inactiveIcon;
   final bool isProfile;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _AnimatedNavItem({
-    this.icon,
+  const _NavItem({
+    this.activeIcon,
+    this.inactiveIcon,
     this.isProfile = false,
     required this.label,
     required this.isSelected,
@@ -91,78 +103,36 @@ class _AnimatedNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = isSelected ? Colors.white : const Color(0xFFAAAAAA);
+    final iconData = isSelected ? activeIcon : inactiveIcon;
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 16 : 8,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primaryAccent.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildIcon(),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              child: SizedBox(
-                width: isSelected ? null : 0,
-                child: Padding(
-                  padding: EdgeInsets.only(left: isSelected ? 8 : 0),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: isSelected
-                          ? AppColors.primaryAccent
-                          : Colors.transparent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                    overflow: TextOverflow.clip,
-                    maxLines: 1,
-                  ),
-                ),
-              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildIcon(iconData, color),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildIcon() {
-    if (isProfile) {
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: isSelected
-              ? Border.all(color: AppColors.primaryAccent, width: 2)
-              : Border.all(color: Colors.transparent, width: 2),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: const NetworkImageWithFallback(
-          imageUrl:
-              'https://lh3.googleusercontent.com/aida/AEtjO1UHL1gIxZsXiKRQwhsoOpCyWPi8kbatjf8cA-Y9MxsFuTcBsA5wf2c4tl1c12IF6cVhnYu8dMJ2s_T9DC2x8ofc1PRLyD_ROBA0IWU0spHoO1XmBUDULngA6Se9La5tR7KXIfBfMv-EvK6z1kjPcMQCcbBQLObDgM097TIeIBE9sovWJ4PbhpclONwiX5N56Bxj1LgW-splkzUULgDjYAiX8J5-GotlgnGn4SNofmk_A2VcJE0Eq_IFJMxr',
-        ),
-      );
-    }
-
+  Widget _buildIcon(IconData? iconData, Color color) {
     return Icon(
-      icon,
-      color: isSelected ? AppColors.primaryAccent : AppColors.secondaryText,
-      size: 24,
+      iconData,
+      color: color,
+      size: 26,
     );
   }
 }

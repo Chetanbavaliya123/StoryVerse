@@ -37,6 +37,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: FloatingActionButton(
+          heroTag: 'ai_hub_fab',
+          onPressed: () => context.push('/ai'),
+          backgroundColor: AppColors.primaryAccent,
+          child: const Icon(Icons.auto_awesome, color: Colors.white),
+        ),
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -152,6 +162,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       data: (stories) {
                         if (stories.length < 3) return const SizedBox.shrink();
                         return Container(
+                          width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           margin: const EdgeInsets.only(bottom: 28),
                           decoration: const BoxDecoration(
@@ -250,6 +261,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (stories.isEmpty) return const SizedBox.shrink();
                         final top10 = stories.take(10).toList();
                         return Container(
+                          width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           margin: const EdgeInsets.only(bottom: 28),
                           decoration: const BoxDecoration(
@@ -300,6 +312,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       data: (stories) {
                         if (stories.isEmpty) return const SizedBox.shrink();
                         return Container(
+                          width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           margin: const EdgeInsets.only(bottom: 28),
                           decoration: const BoxDecoration(

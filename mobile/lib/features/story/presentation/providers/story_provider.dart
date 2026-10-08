@@ -13,9 +13,7 @@ final masterCatalogProvider = StreamProvider<List<StoryModel>>((ref) async* {
   print('=================================');
   print('STORYVERSE CATALOG STREAM INIT');
   print('=================================');
-  yield ref
-      .read(storyRepositoryProvider)
-      .getDemoStories(); // Initial state while loading
+  // Initial state will be 'loading' automatically handled by Riverpod
 
   yield* ref.read(storyRepositoryProvider).streamStories();
 });

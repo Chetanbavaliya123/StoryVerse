@@ -107,13 +107,13 @@ class StoryRepository {
           .timeout(const Duration(seconds: 5));
       if (aiDoc.exists) {
         final data = aiDoc.data()!;
+        final result = data['result'] as Map<String, dynamic>?;
+        
         return StoryModel(
           id: aiDoc.id,
-          title: data['title'] ?? 'Untitled AI Story',
-          description: data['result'] != null && data['result'] is Map
-              ? data['result']['description'] ?? ''
-              : '',
-          fullDescription: data['storyContent'] ?? '',
+          title: result?['title'] ?? data['title'] ?? 'Untitled AI Story',
+          description: result != null ? result['description'] ?? '' : '',
+          fullDescription: result?['story'] ?? data['storyContent'] ?? '',
           thumbnailUrl:
               'https://firebasestorage.googleapis.com/v0/b/storyverse-465bd.appspot.com/o/placeholders%2Fai_story_cover.png?alt=media',
           bannerUrl: null,
@@ -259,7 +259,8 @@ class StoryRepository {
       final snapshot = await _firestore
           .collection('stories')
           .where('status', isEqualTo: 'published')
-          .get();
+          .get()
+          .timeout(const Duration(seconds: 5));
       final fbStories = snapshot.docs
           .map((doc) => StoryModel.fromFirestore(doc))
           .where((story) {

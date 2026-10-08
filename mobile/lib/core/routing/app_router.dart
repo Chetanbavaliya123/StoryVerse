@@ -13,6 +13,8 @@ import 'package:storyverse/features/home/presentation/screens/home_screen.dart';
 
 import 'package:storyverse/features/discover/presentation/screens/discover_screen.dart';
 import 'package:storyverse/features/search/presentation/screens/search_screen.dart';
+import 'package:storyverse/features/shorts/presentation/screens/shorts_screen.dart';
+import 'package:storyverse/features/premium/presentation/screens/premium_screen.dart';
 import 'package:storyverse/features/story/presentation/screens/story_details_screen.dart';
 import 'package:storyverse/features/story/presentation/screens/episodes_screen.dart';
 import 'package:storyverse/features/video_player/presentation/screens/video_player_screen.dart';
@@ -29,6 +31,12 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
 );
 final GlobalKey<NavigatorState> _homeNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'home',
+);
+final GlobalKey<NavigatorState> _shortsNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'shorts',
+);
+final GlobalKey<NavigatorState> _premiumNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'premium',
 );
 final GlobalKey<NavigatorState> _searchNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'search',
@@ -175,6 +183,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
+        path: '/search',
+        name: 'search',
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/notifications',
         name: 'notifications',
         builder: (context, state) => const NotificationsScreen(),
@@ -250,12 +264,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
-            navigatorKey: _searchNavigatorKey,
+            navigatorKey: _shortsNavigatorKey,
             routes: [
               GoRoute(
-                path: '/search',
-                name: 'search',
-                builder: (context, state) => const SearchScreen(),
+                path: '/shorts',
+                name: 'shorts',
+                builder: (context, state) => const ShortsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: _premiumNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/premium',
+                name: 'premium',
+                builder: (context, state) => const PremiumScreen(),
               ),
             ],
           ),

@@ -33,7 +33,7 @@ class AiRepository {
   String? get _uid => _auth.currentUser?.uid;
 
   /// Generate a story using Standalone AI Backend
-  Future<String> generateStory({
+  Future<AiGenerationModel> generateStory({
     required String userId,
     required String prompt,
     required String genre,
@@ -98,7 +98,17 @@ class AiRepository {
           final data = jsonDecode(response.body);
           if (data is Map && data.containsKey('docId')) {
             debugPrint('[AI] Generation successful. docId: ${data['docId']}');
-            return data['docId'] as String;
+            return AiGenerationModel(
+              id: data['docId'] as String,
+              userId: uid,
+              prompt: prompt,
+              genre: genre,
+              language: language,
+              type: 'story',
+              status: 'completed',
+              result: data['story'],
+              createdAt: DateTime.now(),
+            );
           }
           throw Exception(
             data['error'] ?? 'Unexpected response format: missing docId',
@@ -151,6 +161,19 @@ class AiRepository {
         .set({'addedAt': FieldValue.serverTimestamp(), 'storyId': gen.id});
 
     return gen.id;
+  }
+
+  /// Remove generated story from user's library
+  Future<void> unsaveFromLibrary(String generationId) async {
+    final uid = _uid;
+    if (uid == null) throw Exception('Must be logged in');
+
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('library')
+        .doc(generationId)
+        .delete();
   }
 
   /// Get user's generation history

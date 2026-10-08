@@ -5,6 +5,7 @@ import 'package:storyverse/features/library/presentation/providers/library_provi
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/empty_state.dart';
 import 'package:storyverse/core/widgets/skeleton_loader.dart';
+import 'package:storyverse/features/library/data/library_repository.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -16,11 +17,12 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final Set<String> _hiddenStoryIds = {};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -108,6 +110,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
                   Tab(text: 'Watching'),
                   Tab(text: 'Favorites'),
                   Tab(text: 'Saved'),
+                  Tab(text: 'AI Stories'),
                 ],
               ),
             ),
@@ -120,6 +123,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
           _buildHistoryTab(),
           _buildFavoritesTab(),
           _buildDownloadsTab(),
+          _buildAiStoriesTab(),
         ],
       ),
     );
@@ -130,24 +134,79 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
 
     return historyAsync.when(
       data: (stories) {
-        if (stories.isEmpty) {
+        final visibleStories = stories.where((s) => !_hiddenStoryIds.contains(s.id)).toList();
+        if (visibleStories.isEmpty) {
           return const EmptyState(
             icon: Icons.history_rounded,
             title: 'No Watch History',
             message: 'Stories you start watching will appear here.',
           );
         }
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-          itemCount: stories.length,
-          itemBuilder: (context, index) {
-            final story = stories[index];
-            return StoryCard(
-              story: story,
-              isHorizontal: true,
-              subtitle: 'Last watched recently',
-            );
-          },
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: AppColors.primarySurface,
+                          title: const Text('Clear History', style: TextStyle(color: Colors.white)),
+                          content: const Text('Are you sure you want to clear all your watch history?', style: TextStyle(color: AppColors.secondaryText)),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Clear', style: TextStyle(color: Colors.redAccent)),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await ref.read(libraryRepositoryProvider).clearWatchHistory();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Watch history cleared')));
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.delete_sweep_rounded, color: AppColors.secondaryText, size: 20),
+                    label: const Text('Clear History', style: TextStyle(color: AppColors.secondaryText)),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                itemCount: visibleStories.length,
+                itemBuilder: (context, index) {
+                  final story = visibleStories[index];
+                  return StoryCard(
+                    story: story,
+                    isHorizontal: true,
+                    subtitle: 'Last watched recently',
+                    onDelete: () {
+                      setState(() {
+                        _hiddenStoryIds.add(story.id);
+                      });
+                      ref.read(libraryRepositoryProvider).removeFromWatchHistory(story.id).then((_) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Removed from history')));
+                        }
+                      });
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
       loading: () => _buildLoadingList(),
@@ -190,7 +249,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
   }
 
   Widget _buildDownloadsTab() {
-    final libraryAsync = ref.watch(libraryStoriesProvider);
+    final libraryAsync = ref.watch(savedStoriesProvider);
 
     return libraryAsync.when(
       data: (stories) {
@@ -198,8 +257,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
           return const EmptyState(
             icon: Icons.bookmark_border_rounded,
             title: 'Your Library is Empty',
-            message:
-                'Save AI generated stories or download episodes to access them here.',
+            message: 'Save episodes to access them here.',
           );
         }
         return ListView.builder(
@@ -210,9 +268,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
             return StoryCard(
               story: story,
               isHorizontal: true,
-              subtitle: story.categoryId == 'ai-generated'
-                  ? 'Generated AI Story'
-                  : 'Saved to Library',
+              subtitle: 'Saved to Library',
             );
           },
         );
@@ -221,6 +277,71 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
       error: (e, _) => EmptyState(
         icon: Icons.error_outline,
         title: 'Error Loading Library',
+        message: e.toString(),
+      ),
+    );
+  }
+
+  Widget _buildAiStoriesTab() {
+    final aiStoriesAsync = ref.watch(aiStoriesProvider);
+
+    return aiStoriesAsync.when(
+      data: (stories) {
+        final visibleStories = stories.where((s) => !_hiddenStoryIds.contains(s.id)).toList();
+        if (visibleStories.isEmpty) {
+          return const EmptyState(
+            icon: Icons.auto_awesome,
+            title: 'No AI Stories',
+            message: 'Generate and save AI stories to see them here.',
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          itemCount: visibleStories.length,
+          itemBuilder: (context, index) {
+            final story = visibleStories[index];
+            return StoryCard(
+              story: story,
+              isHorizontal: true,
+              subtitle: 'Generated AI Story',
+              onDelete: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: AppColors.primarySurface,
+                    title: const Text('Delete Story', style: TextStyle(color: Colors.white)),
+                    content: const Text('Remove this story from your saved stories?', style: TextStyle(color: AppColors.secondaryText)),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  setState(() {
+                    _hiddenStoryIds.add(story.id);
+                  });
+                  ref.read(libraryRepositoryProvider).toggleLibrary(story.id, false).then((_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Story removed')));
+                    }
+                  });
+                }
+              },
+            );
+          },
+        );
+      },
+      loading: () => _buildLoadingList(),
+      error: (e, _) => EmptyState(
+        icon: Icons.error_outline,
+        title: 'Error Loading AI Stories',
         message: e.toString(),
       ),
     );

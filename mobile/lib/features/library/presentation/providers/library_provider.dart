@@ -10,78 +10,136 @@ final isFavoriteProvider = StreamProvider.family<bool, String>((ref, storyId) {
   return ref.watch(libraryRepositoryProvider).isFavorite(storyId);
 });
 
-final favoriteStoriesProvider = FutureProvider<List<StoryModel>>((ref) async {
+final favoriteStoriesProvider = StreamProvider<List<StoryModel>>((ref) async* {
   final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return [];
+  if (user == null) {
+    yield [];
+    return;
+  }
 
-  final snapshot = await FirebaseFirestore.instance
+  final stream = FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
       .collection('favorites')
-      .get();
+      .snapshots();
 
-  final storyRepo = ref.read(storyRepositoryProvider);
-  List<StoryModel> stories = [];
+  await for (final snapshot in stream) {
+    final storyRepo = ref.read(storyRepositoryProvider);
+    List<StoryModel> stories = [];
+    var docs = snapshot.docs.toList();
+    docs.sort((a, b) {
+      final aDate = (a.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      final bDate = (b.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      return bDate.compareTo(aDate);
+    });
 
-  var docs = snapshot.docs;
-  docs.sort((a, b) {
-    final aDate =
-        (a.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-    final bDate =
-        (b.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-    return bDate.compareTo(aDate);
-  });
-
-  for (var doc in docs) {
-    final storyId = doc.data()['storyId'] as String?;
-    if (storyId != null) {
-      final story = await storyRepo.getStory(storyId);
+    final storyFutures = <Future<StoryModel?>>[];
+    for (var doc in docs) {
+      final storyId = doc.data()['storyId'] as String?;
+      if (storyId != null) {
+        storyFutures.add(storyRepo.getStory(storyId));
+      }
+    }
+    final resolvedStories = await Future.wait(storyFutures);
+    for (var story in resolvedStories) {
       if (story != null) {
         stories.add(story);
       }
     }
+    yield stories;
   }
-  return stories;
 });
 
-final watchHistoryStoriesProvider = FutureProvider<List<StoryModel>>((
-  ref,
-) async {
-  // For demo purposes, we will return some trending stories as history
-  // since real tracking isn't fully implemented yet
-  return ref.watch(storyRepositoryProvider).getStories(limit: 5);
-});
-
-final libraryStoriesProvider = FutureProvider<List<StoryModel>>((ref) async {
+final watchHistoryStoriesProvider = StreamProvider<List<StoryModel>>((ref) async* {
   final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return [];
+  if (user == null) {
+    yield [];
+    return;
+  }
 
-  final snapshot = await FirebaseFirestore.instance
+  final stream = FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .collection('watchHistory')
+      .snapshots();
+
+  await for (final snapshot in stream) {
+    final storyRepo = ref.read(storyRepositoryProvider);
+    List<StoryModel> stories = [];
+    var docs = snapshot.docs.toList();
+    docs.sort((a, b) {
+      final aDate = (a.data()['lastWatchedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      final bDate = (b.data()['lastWatchedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      return bDate.compareTo(aDate);
+    });
+
+    Set<String> processedStoryIds = {};
+    final storyFutures = <Future<StoryModel?>>[];
+    for (var doc in docs) {
+      final storyId = doc.data()['storyId'] as String?;
+      if (storyId != null && !processedStoryIds.contains(storyId)) {
+        processedStoryIds.add(storyId);
+        storyFutures.add(storyRepo.getStory(storyId));
+      }
+    }
+    final resolvedStories = await Future.wait(storyFutures);
+    for (var story in resolvedStories) {
+      if (story != null) {
+        stories.add(story);
+      }
+    }
+    yield stories;
+  }
+});
+
+final libraryStoriesProvider = StreamProvider<List<StoryModel>>((ref) async* {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    yield [];
+    return;
+  }
+
+  final stream = FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
       .collection('library')
-      .get();
+      .snapshots();
 
-  final storyRepo = ref.read(storyRepositoryProvider);
-  List<StoryModel> stories = [];
+  await for (final snapshot in stream) {
+    final storyRepo = ref.read(storyRepositoryProvider);
+    List<StoryModel> stories = [];
+    var docs = snapshot.docs.toList();
+    docs.sort((a, b) {
+      final aDate = (a.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      final bDate = (b.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      return bDate.compareTo(aDate);
+    });
 
-  var docs = snapshot.docs;
-  docs.sort((a, b) {
-    final aDate =
-        (a.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-    final bDate =
-        (b.data()['addedAt'] as Timestamp?)?.toDate() ?? DateTime(2000);
-    return bDate.compareTo(aDate);
-  });
-
-  for (var doc in docs) {
-    final storyId = doc.data()['storyId'] as String?;
-    if (storyId != null) {
-      final story = await storyRepo.getStory(storyId);
+    final storyFutures = <Future<StoryModel?>>[];
+    for (var doc in docs) {
+      final storyId = doc.data()['storyId'] as String?;
+      if (storyId != null) {
+        storyFutures.add(storyRepo.getStory(storyId));
+      }
+    }
+    final resolvedStories = await Future.wait(storyFutures);
+    for (var story in resolvedStories) {
       if (story != null) {
         stories.add(story);
       }
     }
+    yield stories;
   }
-  return stories;
+});
+
+final savedStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
+  final asyncStories = ref.watch(libraryStoriesProvider);
+  return asyncStories.whenData((allStories) => 
+      allStories.where((s) => s.categoryId != 'ai-generated').toList());
+});
+
+final aiStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
+  final asyncStories = ref.watch(libraryStoriesProvider);
+  return asyncStories.whenData((allStories) => 
+      allStories.where((s) => s.categoryId == 'ai-generated').toList());
 });
