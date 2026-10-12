@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:db": "npx tsx src/check_db.ts",
+    "seed:demo": "node ../backend/ai/scripts/seed_demo_catalog.js",
+    "remove:demo": "node ../backend/ai/scripts/remove_demo_catalog.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

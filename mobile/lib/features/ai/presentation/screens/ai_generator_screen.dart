@@ -5,7 +5,6 @@ import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/features/ai/data/ai_repository.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:storyverse/core/models/ai_generation_model.dart';
 
 class AiGeneratorScreen extends ConsumerStatefulWidget {
@@ -78,13 +77,15 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
         '[AI] Generation successful. Elapsed: ${stopwatch.elapsedMilliseconds}ms',
       );
 
-      final storyModel = await ref.read(aiRepositoryProvider).generateStory(
+      final storyModel = await ref
+          .read(aiRepositoryProvider)
+          .generateStory(
             userId: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
             prompt: prompt,
             genre: _selectedGenre,
             language: _selectedLanguage,
           );
-      
+
       if (mounted) {
         setState(() {
           _isGenerating = false;
@@ -135,7 +136,7 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
             _promptController.clear();
           });
         } else if (_isGenerating) {
-          // If we want to allow cancel, we can do it here. 
+          // If we want to allow cancel, we can do it here.
           // For now just ignore back button while generating.
         }
       },

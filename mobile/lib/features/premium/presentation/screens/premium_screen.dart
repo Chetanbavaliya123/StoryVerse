@@ -80,10 +80,7 @@ class PremiumScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF3D1C11),
-                            Color(0xFF1A0E08),
-                          ],
+                          colors: [Color(0xFF3D1C11), Color(0xFF1A0E08)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -131,10 +128,7 @@ class PremiumScreen extends ConsumerWidget {
                             ),
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFFFFD700),
-                                  Color(0xFFFFA500),
-                                ],
+                                colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
                               ),
                               borderRadius: BorderRadius.circular(24),
                             ),
@@ -197,7 +191,7 @@ class PremiumScreen extends ConsumerWidget {
                     );
                   },
                   loading: () => _buildHorizontalSkeleton(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
               ),
             ),
@@ -234,11 +228,11 @@ class PremiumScreen extends ConsumerWidget {
                         physics: const NeverScrollableScrollPhysics(),
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          childAspectRatio: 0.65,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 16,
-                        ),
+                              crossAxisCount: 3,
+                              childAspectRatio: 0.65,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 16,
+                            ),
                         itemCount: stories.length > 6 ? 6 : stories.length,
                         itemBuilder: (context, index) {
                           final story = stories[index];
@@ -248,7 +242,7 @@ class PremiumScreen extends ConsumerWidget {
                     );
                   },
                   loading: () => _buildGridSkeleton(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
               ),
             ),
@@ -294,7 +288,7 @@ class PremiumScreen extends ConsumerWidget {
                     );
                   },
                   loading: () => _buildHorizontalSkeleton(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
               ),
             ),

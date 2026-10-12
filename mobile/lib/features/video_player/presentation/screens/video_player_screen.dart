@@ -1,19 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+
+import 'package:storyverse/core/models/player_playback_state.dart';
 import 'package:storyverse/core/models/episode_model.dart';
+import 'package:storyverse/core/models/story_model.dart';
+import 'package:storyverse/core/utils/video_url_helper.dart';
 import 'package:storyverse/features/story/data/story_repository.dart';
 import 'package:storyverse/features/story/data/watch_history_repository.dart';
-
-import 'package:storyverse/core/theme/design_tokens.dart';
-import 'package:storyverse/features/video_player/presentation/widgets/premium_video_player.dart';
-import 'package:storyverse/features/video_player/presentation/widgets/player_controls_overlay.dart';
-import 'package:storyverse/features/video_player/presentation/widgets/episode_info_section.dart';
-import 'package:storyverse/features/video_player/presentation/widgets/episode_tile.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:storyverse/features/video_player/presentation/widgets/vertical_video_view.dart';
+import 'package:storyverse/features/video_player/presentation/widgets/episode_player_controls.dart';
 
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String storyId;
@@ -30,217 +28,239 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
+  PageController? _pageController;
+  int _currentIndex = 0;
+  StoryModel? _story;
+  List<EpisodeModel> _episodes = [];
+
   VideoPlayerController? _controller;
-  bool _isLoading = true;
-  bool _hasError = false;
+  PlayerPlaybackState _playbackState = PlayerPlaybackState.initializing;
   String _errorMessage = '';
-  bool _showControls = true;
-  bool _isFullscreen = false;
+  bool _showControls = false;
+  bool _isMuted = false;
+
   Timer? _hideControlsTimer;
   Timer? _progressSaveTimer;
-  EpisodeModel? _episode;
-  List<EpisodeModel> _allEpisodes = [];
-  bool _isCompleted = false;
+  Timer? _tapFeedbackTimer;
+  bool _showTapFeedback = false;
+  bool _isPlayingFeedback = false;
   late final WatchHistoryRepository _historyRepo;
+  bool _isAutoAdvancing = false;
 
   @override
   void initState() {
     super.initState();
     WakelockPlus.enable();
     _historyRepo = ref.read(watchHistoryRepositoryProvider);
-    _loadEpisode();
+    _loadStoryAndEpisodes();
   }
 
-  Future<void> _loadEpisode() async {
+  Future<void> _loadStoryAndEpisodes() async {
     setState(() {
-      _isLoading = true;
-      _hasError = false;
+      _playbackState = PlayerPlaybackState.initializing;
+      _errorMessage = '';
     });
 
     try {
-      final repo = ref.read(storyRepositoryProvider);
-      final episode = await repo.getEpisode(widget.storyId, widget.episodeId);
-      final allEpisodes = await repo.getEpisodes(widget.storyId);
-      allEpisodes.sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
+      final storyRepo = ref.read(storyRepositoryProvider);
+      final story = await storyRepo.getStory(widget.storyId);
+      final episodes = await storyRepo.getEpisodes(widget.storyId);
+      episodes.sort((a, b) => a.episodeNumber.compareTo(b.episodeNumber));
 
-      if (episode == null) {
+      if (episodes.isEmpty) {
         setState(() {
-          _hasError = true;
-          _errorMessage = 'Episode not found';
-          _isLoading = false;
+          _playbackState = PlayerPlaybackState.error;
+          _errorMessage = 'No episodes available for this story.';
         });
         return;
       }
 
-      if (episode.videoUrl.trim().isEmpty) {
-        setState(() {
-          _hasError = true;
-          _errorMessage = 'Video unavailable for this episode.';
-          _isLoading = false;
-        });
-        return;
-      }
+      int initialIndex = episodes.indexWhere((e) => e.id == widget.episodeId);
+      if (initialIndex < 0) initialIndex = 0;
 
-      _episode = episode;
-      _allEpisodes = allEpisodes;
+      if (!mounted) return;
 
-      // Restore previous position
-      final history = await _historyRepo.getEpisodeProgress(
-        widget.storyId,
-        widget.episodeId,
-      );
-
-      await _initializePlayer(episode.videoUrl, history?.progressSeconds);
-    } catch (e) {
       setState(() {
-        _hasError = true;
-        _errorMessage = 'Failed to load: $e';
-        _isLoading = false;
+        _story = story;
+        _episodes = episodes;
+        _currentIndex = initialIndex;
+        _pageController = PageController(initialPage: initialIndex);
+      });
+
+      await _initializeCurrentEpisode();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _playbackState = PlayerPlaybackState.error;
+        _errorMessage = 'Failed to load episodes: $e';
       });
     }
   }
 
-  Future<void> _initializePlayer(String rawVideoUrl, int? startPosition) async {
-    _controller?.dispose();
+  Future<void> _initializeCurrentEpisode() async {
+    if (_episodes.isEmpty) return;
 
-    String videoUrl = rawVideoUrl;
-    String provider = 'direct/supabase';
+    final episode = _episodes[_currentIndex];
 
-    if (videoUrl.contains('drive.google.com')) {
-      provider = 'google_drive';
-      final driveMatch = RegExp(
-        r'(?:file\/d\/|id=)([a-zA-Z0-9_-]+)',
-      ).firstMatch(videoUrl);
-      if (driveMatch != null && driveMatch.group(1) != null) {
-        final fileId = driveMatch.group(1);
-        // Add confirm=t to bypass the Google Drive virus scan warning page for large files
-        videoUrl =
-            'https://drive.google.com/uc?export=download&confirm=t&id=$fileId';
+    _progressSaveTimer?.cancel();
+    _hideControlsTimer?.cancel();
+    _saveProgress();
 
-        // On web, Google Drive blocks direct streaming due to CORS.
-        // We use a CORS proxy to bypass this restriction.
-        if (const bool.fromEnvironment('dart.library.html') ||
-            const bool.fromEnvironment('dart.library.js_util')) {
-          videoUrl = 'https://corsproxy.io/?${Uri.encodeComponent(videoUrl)}';
-        }
-      }
-    } else if (videoUrl.contains('youtube.com') ||
-        videoUrl.contains('youtu.be')) {
-      provider = 'youtube';
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _isLoading = false;
-          _errorMessage =
-              'This episode needs a direct video source.\nYouTube URLs are not supported as in-app video sources.';
-        });
-      }
+    if (_controller != null) {
+      _controller!.removeListener(_onControllerUpdate);
+      _controller!.dispose();
+      _controller = null;
+    }
+
+    setState(() {
+      _isAutoAdvancing = false;
+      _playbackState = PlayerPlaybackState.initializing;
+      _errorMessage = '';
+      _showControls = false;
+    });
+
+    final rawVideoUrl = episode.videoUrl.trim();
+    if (rawVideoUrl.isEmpty) {
+      setState(() {
+        _playbackState = PlayerPlaybackState.error;
+        _errorMessage = 'Video source is missing for this episode.';
+      });
       return;
     }
 
-    final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
-    _controller = controller;
+    if (VideoUrlHelper.isYouTube(rawVideoUrl)) {
+      setState(() {
+        _playbackState = PlayerPlaybackState.error;
+        _errorMessage =
+            'This episode requires a direct video stream source.\nYouTube links are not supported in native playback.';
+      });
+      return;
+    }
+
+    final normalizedUrl = VideoUrlHelper.normalize(rawVideoUrl);
 
     try {
+      final controller =
+          VideoPlayerController.networkUrl(Uri.parse(normalizedUrl));
+      _controller = controller;
+
       await controller.initialize().timeout(const Duration(seconds: 15));
+      await controller.setVolume(_isMuted ? 0.0 : 1.0);
 
-      print('PLAYER READY');
+      // Check WatchHistory for resume position
+      final history = await _historyRepo.getEpisodeProgress(
+        widget.storyId,
+        episode.id,
+      );
 
-      if (startPosition != null && startPosition > 0) {
-        await controller.seekTo(Duration(seconds: startPosition));
+      if (history != null &&
+          !history.isCompleted &&
+          history.progressSeconds > 3 &&
+          controller.value.duration.inSeconds > 0 &&
+          history.progressSeconds < controller.value.duration.inSeconds - 5) {
+        await controller.seekTo(Duration(seconds: history.progressSeconds));
       }
 
-      controller.addListener(_onPlayerStateChange);
-      controller.play();
+      controller.addListener(_onControllerUpdate);
+      await controller.play();
 
       _startProgressSaveTimer();
       _startHideControlsTimer();
 
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _playbackState = PlayerPlaybackState.playing;
+          _showControls = true; // Show functions initially for 3 seconds
         });
+        _startHideControlsTimer();
       }
     } catch (e) {
-      assert(() {
-        print('================ VIDEO PLAYER DIAGNOSTIC ================');
-        print('Provider: $provider');
-        print('Original URL: $rawVideoUrl');
-        print('Normalized URL: $videoUrl');
-        print('Error: $e');
-        print('=======================================================');
-        return true;
-      }());
-
       if (mounted) {
         setState(() {
-          _hasError = true;
-          _isLoading = false;
+          _playbackState = PlayerPlaybackState.error;
           if (e is TimeoutException) {
-            _errorMessage = 'Video is taking too long to load.';
-          } else if (provider == 'google_drive') {
-            _errorMessage =
-                'Unable to play this Google Drive video. It may be private, restricted, or exceeded sharing limits.';
+            _errorMessage = 'Playback timed out. Please check your internet.';
           } else {
-            _errorMessage = 'Unable to play this episode.';
+            _errorMessage = 'Unable to play this episode. Please try again.';
           }
         });
       }
     }
   }
 
-  void _onPlayerStateChange() {
+  void _onControllerUpdate() {
     if (!mounted) return;
-    setState(() {});
 
     final controller = _controller;
-    if (controller == null) return;
+    if (controller == null || !controller.value.isInitialized) return;
 
-    if (controller.value.position >=
-            controller.value.duration - const Duration(seconds: 1) &&
-        controller.value.duration > Duration.zero) {
-      if (!_isCompleted) {
-        _saveProgress();
-        setState(() {
-          _isCompleted = true;
-          _showControls = false;
-        });
+    final duration = controller.value.duration;
+    final position = controller.value.position;
+
+    // Detect natural completion: auto-advance with swipe animation or exit on last episode
+    if (duration > Duration.zero &&
+        position >= duration - const Duration(milliseconds: 600)) {
+      if (!_isAutoAdvancing) {
+        _isAutoAdvancing = true;
+        _saveProgress(markCompleted: true);
+        if (_currentIndex < _episodes.length - 1) {
+          // Automatically swipe up to next episode with animation
+          _goToEpisodeIndex(_currentIndex + 1);
+        } else {
+          // Last episode ended -> return to Story Details ("Watch Now") screen
+          if (mounted && Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+        }
       }
-    } else if (_isCompleted &&
-        controller.value.position <
-            controller.value.duration - const Duration(seconds: 2)) {
-      setState(() {
-        _isCompleted = false;
-      });
+      return;
+    }
+
+    if (_playbackState != PlayerPlaybackState.completed &&
+        _playbackState != PlayerPlaybackState.initializing &&
+        _playbackState != PlayerPlaybackState.error) {
+      final newState = controller.value.isPlaying
+          ? PlayerPlaybackState.playing
+          : PlayerPlaybackState.paused;
+      if (_playbackState != newState) {
+        setState(() {
+          _playbackState = newState;
+        });
+      } else {
+        // Continuous position rebuild for timeline
+        setState(() {});
+      }
     }
   }
 
   void _startProgressSaveTimer() {
     _progressSaveTimer?.cancel();
-    _progressSaveTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _progressSaveTimer = Timer.periodic(const Duration(seconds: 6), (_) {
       _saveProgress();
     });
   }
 
-  void _saveProgress() {
+  void _saveProgress({bool markCompleted = false}) {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
+    if (_episodes.isEmpty) return;
 
+    final currentEp = _episodes[_currentIndex];
     final position = controller.value.position.inSeconds;
     final total = controller.value.duration.inSeconds;
     if (total <= 0) return;
 
     _historyRepo.updateProgress(
       storyId: widget.storyId,
-      episodeId: widget.episodeId,
-      progressSeconds: position,
+      episodeId: currentEp.id,
+      progressSeconds: markCompleted ? total : position,
       totalDuration: total,
     );
   }
 
   void _startHideControlsTimer() {
     _hideControlsTimer?.cancel();
-    _hideControlsTimer = Timer(const Duration(seconds: 4), () {
+    _hideControlsTimer = Timer(const Duration(seconds: 3), () {
       if (mounted && _controller?.value.isPlaying == true) {
         setState(() {
           _showControls = false;
@@ -249,344 +269,195 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     });
   }
 
-  void _toggleControls() {
-    setState(() {
-      _showControls = !_showControls;
-    });
-    if (_showControls) _startHideControlsTimer();
-  }
-
-  void _togglePlayPause() {
+  /// Screen Tap Handler:
+  /// Taps toggle play/pause immediately with brief 500ms feedback (same as Shorts),
+  /// while revealing functions (top bar + timeline) for 3 seconds before auto-hiding.
+  void _onTapVideoScreen() {
     final controller = _controller;
-    if (controller == null) return;
+    if (controller == null || !controller.value.isInitialized) return;
 
+    // 1. Show functions (top bar + timeline) for 3 seconds, then auto-hide
+    setState(() {
+      _showControls = true;
+    });
+    _startHideControlsTimer();
+
+    // 2. Toggle Play/Pause with brief 500ms feedback icon (same as Shorts)
     if (controller.value.isPlaying) {
       controller.pause();
       _saveProgress();
       setState(() {
-        _showControls = true;
+        _playbackState = PlayerPlaybackState.paused;
       });
+      _showBriefFeedback(isPlaying: false);
     } else {
-      // If at end, replay from start
-      if (controller.value.position >=
-          controller.value.duration - const Duration(seconds: 1)) {
-        controller.seekTo(Duration.zero);
-      }
       controller.play();
-      _startHideControlsTimer();
+      setState(() {
+        _playbackState = PlayerPlaybackState.playing;
+      });
+      _showBriefFeedback(isPlaying: true);
     }
   }
 
-  void _seekForward() {
-    final controller = _controller;
-    if (controller == null) return;
-    final newPos = controller.value.position + const Duration(seconds: 10);
-    controller.seekTo(
-      newPos > controller.value.duration ? controller.value.duration : newPos,
-    );
-    _startHideControlsTimer();
-  }
-
-  void _seekBackward() {
-    final controller = _controller;
-    if (controller == null) return;
-    final newPos = controller.value.position - const Duration(seconds: 10);
-    controller.seekTo(newPos < Duration.zero ? Duration.zero : newPos);
-    _startHideControlsTimer();
-  }
-
-  void _toggleFullscreen() {
-    if (_isFullscreen) {
-      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    } else {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    }
+  void _showBriefFeedback({required bool isPlaying}) {
+    _tapFeedbackTimer?.cancel();
     setState(() {
-      _isFullscreen = !_isFullscreen;
+      _showTapFeedback = true;
+      _isPlayingFeedback = isPlaying;
+    });
+    _tapFeedbackTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _showTapFeedback = false;
+        });
+      }
     });
   }
 
-  void _switchEpisode(EpisodeModel episode) async {
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    _controller?.setVolume(_isMuted ? 0.0 : 1.0);
+    if (_showControls) _startHideControlsTimer();
+  }
+
+  void _seekTo(Duration target) {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    controller.seekTo(target);
     _saveProgress();
-    _controller?.pause();
-
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-      _episode = episode;
-      _isCompleted = false;
-    });
-
-    final history = await _historyRepo.getEpisodeProgress(
-      widget.storyId,
-      episode.id,
-    );
-    await _initializePlayer(episode.videoUrl, history?.progressSeconds);
+    _startHideControlsTimer();
   }
 
+  void _goToEpisodeIndex(int index) {
+    if (index < 0 || index >= _episodes.length) return;
+    _pageController?.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  void _onPageChanged(int index) {
+    if (_currentIndex == index) return;
+    setState(() {
+      _currentIndex = index;
+    });
+    _initializeCurrentEpisode();
+  }
 
   @override
   void dispose() {
     _saveProgress();
     _hideControlsTimer?.cancel();
     _progressSaveTimer?.cancel();
-    _controller?.removeListener(_onPlayerStateChange);
-    _controller?.dispose();
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    _tapFeedbackTimer?.cancel();
+    if (_controller != null) {
+      _controller!.removeListener(_onControllerUpdate);
+      _controller!.dispose();
+    }
+    _pageController?.dispose();
     WakelockPlus.disable();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: DesignTokens.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Video Player Area
-            if (_isFullscreen)
-              Expanded(child: _buildPremiumVideoArea())
-            else
-              _buildPremiumVideoArea(),
+    final hasGenuineError = _playbackState == PlayerPlaybackState.error;
+    final isLoading = _playbackState == PlayerPlaybackState.initializing;
 
-            // Episode Info & List (hidden in fullscreen)
-            if (!_isFullscreen) Expanded(child: _buildBottomSection()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPremiumVideoArea() {
-    return PremiumVideoPlayer(
-      controller: _controller,
-      thumbnailUrl: _episode?.thumbnailUrl ?? '',
-      isLoading: _isLoading,
-      hasError: _hasError,
-      errorWidget: _buildErrorState(),
-      completionOverlay: _isCompleted ? _buildCompletionOverlay() : null,
-      controlsOverlay: _controller != null
-          ? PlayerControlsOverlay(
-              controller: _controller!,
-              title: _episode?.title ?? 'Video Player',
-              showControls: _showControls,
-              isFullscreen: _isFullscreen,
-              onToggleControls: _toggleControls,
-              onTogglePlayPause: _togglePlayPause,
-              onSeekForward: _seekForward,
-              onSeekBackward: _seekBackward,
-              onToggleFullscreen: _toggleFullscreen,
-              onBack: () {
-                _saveProgress();
-                Navigator.of(context).pop();
-              },
-            )
-          : null,
-    );
-  }
-
-  Widget _buildBottomSection() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            DesignTokens.backgroundTop,
-            DesignTokens.background,
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: DesignTokens.spaceLarge, vertical: DesignTokens.spaceLarge),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
+    if (_episodes.isEmpty && hasGenuineError) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (_episode != null)
-                  EpisodeInfoSection(
-                    episode: _episode!,
-                    duration: _controller?.value.isInitialized == true
-                        ? _controller!.value.duration
-                        : null,
-                  ),
-                const SizedBox(height: DesignTokens.spaceXLarge),
-                // Other episodes
-                if (_allEpisodes.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      Text(
-                        'Episodes',
-                        style: DesignTokens.sectionHeadingStyle,
-                      ),
-                      const SizedBox(width: DesignTokens.spaceSmall),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: DesignTokens.surfaceGlass,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${_allEpisodes.length}',
-                          style: DesignTokens.bodyStyle.copyWith(
-                            color: DesignTokens.textPrimary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ).animate().fade(delay: 500.ms),
-                  const SizedBox(height: DesignTokens.spaceMedium),
-                  ..._allEpisodes.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final ep = entry.value;
-                    return EpisodeTile(
-                      episode: ep,
-                      isActive: ep.id == _episode?.id,
-                      onTap: () => _switchEpisode(ep),
-                    ).animate().fade(delay: Duration(milliseconds: 600 + (index * 100))).slideY(begin: 0.2, end: 0, duration: 400.ms);
-                  }),
-                ],
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: Colors.red,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _loadStoryAndEpisodes,
+                      child: const Text('Retry'),
+                    ),
+                    const SizedBox(width: 16),
+                    OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Back'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  Widget _buildCompletionOverlay() {
-    final currentIndex = _allEpisodes.indexWhere((ep) => ep.id == _episode?.id);
-    final isLastEpisode = currentIndex == -1 || currentIndex == _allEpisodes.length - 1;
+    if (_episodes.isEmpty || _story == null || _pageController == null) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.red),
+        ),
+      );
+    }
 
-    return Container(
-      color: Colors.black87,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              isLastEpisode ? 'Story Completed' : 'Episode Completed',
-              style: DesignTokens.titleStyle.copyWith(fontSize: 24),
-            ).animate().scale(),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (!isLastEpisode)
-                  ElevatedButton.icon(
-                    onPressed: () => _switchEpisode(_allEpisodes[currentIndex + 1]),
-                    icon: const Icon(Icons.skip_next_rounded),
-                    label: const Text('Next Episode'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: DesignTokens.primaryAccent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusSmall)),
-                    ),
-                  ),
-                if (isLastEpisode)
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      _controller?.seekTo(Duration.zero);
-                      _controller?.play();
-                      setState(() {
-                        _isCompleted = false;
-                      });
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: PageView.builder(
+        controller: _pageController,
+        scrollDirection: Axis.vertical,
+        itemCount: _episodes.length,
+        onPageChanged: _onPageChanged,
+        itemBuilder: (context, index) {
+          final episode = _episodes[index];
+          final isCurrent = index == _currentIndex;
+
+          return VerticalVideoView(
+            controller: isCurrent ? _controller : null,
+            thumbnailUrl: episode.thumbnailUrl,
+            isLoading: isCurrent ? isLoading : false,
+            hasError: isCurrent ? hasGenuineError : false,
+            errorMessage: _errorMessage,
+            onRetry: _initializeCurrentEpisode,
+            overlay: isCurrent
+                ? EpisodePlayerControls(
+                    story: _story!,
+                    episode: episode,
+                    controller: _controller,
+                    showControls: _showControls,
+                    isMuted: _isMuted,
+                    isInitialized: _controller != null && _controller!.value.isInitialized,
+                    showTapFeedback: _showTapFeedback,
+                    isPlayingFeedback: _isPlayingFeedback,
+                    onTapVideo: _onTapVideoScreen,
+                    onToggleMute: _toggleMute,
+                    onBack: () {
+                      _saveProgress();
+                      Navigator.of(context).pop();
                     },
-                    icon: const Icon(Icons.replay_rounded),
-                    label: const Text('Watch Again'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: DesignTokens.primaryAccent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusSmall)),
-                    ),
-                  ),
-                const SizedBox(width: 16),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    _saveProgress();
-                    if (_isFullscreen) _toggleFullscreen();
-                    Navigator.of(context).pop();
-                  },
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  label: const Text('Back to Story'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.radiusSmall)),
-                  ),
-                ),
-              ],
-            ).animate().fade(delay: 200.ms),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              color: DesignTokens.primaryAccent,
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage,
-              style: DesignTokens.bodyStyle.copyWith(color: DesignTokens.textPrimary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _loadEpisode,
-                  icon: const Icon(Icons.refresh_rounded, size: 18),
-                  label: const Text('Retry'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: DesignTokens.primaryAccent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                  label: const Text('Back'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusSmall),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+                    onSeek: _seekTo,
+                  )
+                : const SizedBox.shrink(),
+          );
+        },
       ),
     );
   }

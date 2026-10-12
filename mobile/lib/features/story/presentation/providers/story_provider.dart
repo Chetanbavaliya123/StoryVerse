@@ -9,40 +9,48 @@ import 'package:storyverse/features/story/data/watch_history_repository.dart';
 import 'package:storyverse/core/models/watch_history_model.dart';
 import 'package:storyverse/core/models/continue_watching_item.dart';
 
-final masterCatalogProvider = StreamProvider<List<StoryModel>>((ref) async* {
-  print('=================================');
-  print('STORYVERSE CATALOG STREAM INIT');
-  print('=================================');
-  // Initial state will be 'loading' automatically handled by Riverpod
-
-  yield* ref.read(storyRepositoryProvider).streamStories();
+final masterCatalogProvider = StreamProvider<List<StoryModel>>((ref) {
+  return ref.watch(storyRepositoryProvider).streamStories();
 });
 
 final trendingStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    return catalog.where((s) => s.isTrending).take(5).toList();
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    final trending = list.where((s) => s.isTrending).take(5).toList();
+    return trending.isNotEmpty ? trending : list.take(5).toList();
   });
 });
 
 final latestStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    return catalog.take(10).toList();
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    return list.take(10).toList();
   });
 });
 
 final allStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    return catalog.take(50).toList();
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    return list.take(50).toList();
   });
 });
 
 final popularStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    var sorted = List<StoryModel>.from(catalog);
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    var sorted = List<StoryModel>.from(list);
     sorted.sort((a, b) => b.views.compareTo(a.views));
     return sorted.take(20).toList();
   });
@@ -51,8 +59,10 @@ final popularStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
 final topTenStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    var sorted = List<StoryModel>.from(catalog);
-    // Rank by a mix of views and rating, or just rating if views are 0
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    var sorted = List<StoryModel>.from(list);
     sorted.sort((a, b) {
       double scoreA = a.views + (a.rating * 100);
       double scoreB = b.views + (b.rating * 100);
@@ -65,14 +75,20 @@ final topTenStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
 final storiesByLanguageProvider = Provider.family<AsyncValue<List<StoryModel>>, String>((ref, language) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    return catalog.where((s) => s.language.trim().toLowerCase() == language.trim().toLowerCase()).toList();
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    return list.where((s) => s.language.trim().toLowerCase() == language.trim().toLowerCase()).toList();
   });
 });
 
 final storiesByMultiFilterProvider = Provider.family<AsyncValue<List<StoryModel>>, Map<String, String?>>((ref, filters) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    var filtered = List<StoryModel>.from(catalog);
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    var filtered = List<StoryModel>.from(list);
     
     final genre = filters['genre'];
     if (genre != null && genre.isNotEmpty) {
@@ -115,24 +131,32 @@ final advertisementsProvider = FutureProvider<List<AdvertisementModel>>((
 final genresProvider = Provider<AsyncValue<List<String>>>((ref) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    return catalog
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    final genres = list
         .map((s) => s.genreId)
         .where((g) => g.isNotEmpty)
         .toSet()
         .toList()
       ..sort();
+    return genres;
   });
 });
 
 final categoriesProvider = Provider<AsyncValue<List<String>>>((ref) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
-    return catalog
+    final list = catalog.isNotEmpty
+        ? catalog
+        : ref.read(storyRepositoryProvider).getDemoStories();
+    final categories = list
         .map((s) => s.categoryId)
         .where((c) => c.isNotEmpty)
         .toSet()
         .toList()
       ..sort();
+    return categories;
   });
 });
 
@@ -146,7 +170,13 @@ final storiesByGenreProvider =
     Provider.family<AsyncValue<List<StoryModel>>, String>((ref, genreId) {
       final catalogAsync = ref.watch(masterCatalogProvider);
       return catalogAsync.whenData((catalog) {
-        return catalog.where((s) => s.genreId == genreId).take(20).toList();
+        final list = catalog.isNotEmpty
+            ? catalog
+            : ref.read(storyRepositoryProvider).getDemoStories();
+        return list
+            .where((s) => s.genreId.toLowerCase() == genreId.toLowerCase())
+            .take(20)
+            .toList();
       });
     });
 
@@ -154,8 +184,11 @@ final storiesByCategoryProvider =
     Provider.family<AsyncValue<List<StoryModel>>, String>((ref, categoryId) {
       final catalogAsync = ref.watch(masterCatalogProvider);
       return catalogAsync.whenData((catalog) {
-        return catalog
-            .where((s) => s.categoryId == categoryId)
+        final list = catalog.isNotEmpty
+            ? catalog
+            : ref.read(storyRepositoryProvider).getDemoStories();
+        return list
+            .where((s) => s.categoryId.toLowerCase() == categoryId.toLowerCase())
             .take(20)
             .toList();
       });

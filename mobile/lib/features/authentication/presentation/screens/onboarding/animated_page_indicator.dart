@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'design_tokens.dart';
 
@@ -25,7 +24,8 @@ class AnimatedPageIndicator extends StatelessWidget {
           final distance = (pageOffset - index).abs();
           final activity = (1.0 - distance).clamp(0.0, 1.0);
 
-          final width = OBTokens.dotSize +
+          final width =
+              OBTokens.dotSize +
               (OBTokens.dotActiveWidth - OBTokens.dotSize) * activity;
 
           return Padding(
@@ -45,8 +45,16 @@ class AnimatedPageIndicator extends StatelessWidget {
                 gradient: activity > 0.05
                     ? LinearGradient(
                         colors: [
-                          Color.lerp(OBTokens.dotInactive, OBTokens.crimsonStart, activity)!,
-                          Color.lerp(OBTokens.dotInactive, OBTokens.crimsonEnd, activity)!,
+                          Color.lerp(
+                            OBTokens.dotInactive,
+                            OBTokens.crimsonStart,
+                            activity,
+                          )!,
+                          Color.lerp(
+                            OBTokens.dotInactive,
+                            OBTokens.crimsonEnd,
+                            activity,
+                          )!,
                         ],
                       )
                     : null,
@@ -100,7 +108,7 @@ class ProgressRingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
-      
+
     canvas.drawPath(pillPath, bgPaint);
 
     if (progress <= 0) return;

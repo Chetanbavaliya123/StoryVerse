@@ -7,7 +7,6 @@ import 'package:storyverse/core/models/continue_watching_item.dart';
 import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/section_header.dart';
-import 'package:storyverse/core/widgets/skeleton_loader.dart';
 import 'package:storyverse/features/home/presentation/widgets/home_components.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -30,7 +29,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final trendingAsync = ref.watch(trendingStoriesProvider);
     final historyAsync = ref.watch(continueWatchingProvider);
-    final allStoriesAsync = ref.watch(allStoriesProvider);
     final latestAsync = ref.watch(latestStoriesProvider);
     final popularAsync = ref.watch(popularStoriesProvider);
     final topTenAsync = ref.watch(topTenStoriesProvider);
@@ -73,10 +71,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (stories.isEmpty) return const SizedBox(height: 100);
                         return HeroCarousel(stories: stories);
                       },
-                      loading: () => const Padding(
-                        padding: EdgeInsets.only(top: 16.0),
-                        child: SkeletonLoader(height: 400, borderRadius: 16),
-                      ),
+                      loading: () => const SizedBox.shrink(),
                       error: (_, _) => const SizedBox(height: 100),
                     ),
 
@@ -117,7 +112,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ],
                         );
                       },
-                      loading: () => _buildHorizontalCardSkeleton(),
+                      loading: () => const SizedBox.shrink(),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
 
@@ -153,7 +148,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ],
                         );
                       },
-                      loading: () => _buildHorizontalCardSkeleton(),
+                      loading: () => const SizedBox.shrink(),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
 
@@ -215,7 +210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         );
                       },
-                      loading: () => _buildGridSkeleton(),
+                      loading: () => const SizedBox.shrink(),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
 
@@ -357,7 +352,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         );
                       },
-                      loading: () => _buildHorizontalCardSkeleton(),
+                      loading: () => const SizedBox.shrink(),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
 
@@ -415,63 +410,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHorizontalCardSkeleton() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: SkeletonLoader(width: 150, height: 24),
-        ),
-        SizedBox(
-          height: 180,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: 3,
-            itemBuilder: (context, index) => const Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: SkeletonLoader(width: 120, height: 180, borderRadius: 16),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  Widget _buildGridSkeleton() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: SkeletonLoader(width: 150, height: 24),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 0.65,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: 6,
-            itemBuilder: (context, index) => const SkeletonLoader(
-              width: double.infinity,
-              height: double.infinity,
-              borderRadius: 8,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
     );
   }
 }

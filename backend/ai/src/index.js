@@ -120,117 +120,56 @@ Note: If it's a short story, you can leave the 'chapters' array empty or provide
 Do NOT repeat the opening paragraph inside the chapters. Ensure character names are spelled consistently.
 `;
 
-    let storyJson = null;
-    let qualityAttempts = 0;
-    const maxQualityAttempts = 3; // 1 initial + 2 retries
-    let validationError = 'Failed to generate a valid story.';
+    let result = null;
+    let apiAttempt = 0;
+    const maxApiAttempts = 3;
 
-    while (qualityAttempts < maxQualityAttempts) {
-      qualityAttempts++;
-      let result = null;
-      let apiAttempt = 0;
-      const maxApiAttempts = 3;
-
-      while (apiAttempt < maxApiAttempts) {
-        apiAttempt++;
-        try {
-          result = await model.generateContent(aiPrompt);
-          break; // Success
-        } catch (genError) {
-          const errStr = genError.message.toLowerCase();
-          const isTransient = errStr.includes('503') || errStr.includes('429') || errStr.includes('quota') || errStr.includes('exhausted') || errStr.includes('timeout') || errStr.includes('fetch');
-          
-          if (isTransient && apiAttempt < maxApiAttempts) {
-            const delayMs = Math.floor(Math.random() * 1000) + (apiAttempt === 1 ? 1000 : apiAttempt === 2 ? 3000 : 7000);
-            console.warn(`[API Attempt ${apiAttempt}/${maxApiAttempts}] Gemini transient error. Retrying in ${delayMs}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-          } else {
-            throw genError; // Max attempts reached or non-transient
-          }
-        }
-      }
-
-      let responseText = result.response.text();
-
-      // Safely normalize markdown/code fences
-      responseText = responseText.trim();
-      if (responseText.startsWith('```json')) {
-        responseText = responseText.substring(7);
-      } else if (responseText.startsWith('```')) {
-        responseText = responseText.substring(3);
-      }
-      if (responseText.endsWith('```')) {
-        responseText = responseText.substring(0, responseText.length - 3);
-      }
-      responseText = responseText.trim();
-
+    while (apiAttempt < maxApiAttempts) {
+      apiAttempt++;
       try {
-        storyJson = JSON.parse(responseText);
-      } catch (parseError) {
-        validationError = 'AI returned malformed JSON.';
-        continue; // Try again
-      }
-
-      // --- A. MINIMUM QUALITY & STRUCTURE VALIDATION ---
-      if (!storyJson.title || !storyJson.story) {
-        validationError = 'AI returned incomplete story data.';
-        continue;
-      }
-      if (storyJson.story.length < 50 && (!storyJson.chapters || storyJson.chapters.length === 0)) {
-         validationError = 'Story is too short.';
-         continue;
-      }
-
-      // --- B. DUPLICATE CONTENT VALIDATION ---
-      let hasDuplicates = false;
-      const storyIntro = storyJson.story.substring(0, 200).toLowerCase();
-      if (storyJson.chapters && storyJson.chapters.length > 0) {
-        const ch1Start = storyJson.chapters[0].content.substring(0, 200).toLowerCase();
-        // Check if intro is repeated at the start of chapter 1
-        if (ch1Start.length > 50 && ch1Start === storyIntro) {
-           hasDuplicates = true;
-           validationError = 'Opening paragraph is duplicated in Chapter 1.';
-        }
+        result = await model.generateContent(aiPrompt);
+        break; // Success
+      } catch (genError) {
+        const errStr = genError.message.toLowerCase();
+        const isTransient = errStr.includes('503') || errStr.includes('429') || errStr.includes('quota') || errStr.includes('exhausted') || errStr.includes('timeout') || errStr.includes('fetch');
         
-        // Check for empty chapters
-        for (let i = 0; i < storyJson.chapters.length; i++) {
-          if (!storyJson.chapters[i].content || storyJson.chapters[i].content.trim().length < 20) {
-            hasDuplicates = true;
-            validationError = `Chapter ${i+1} is empty or too short.`;
-          }
+        if (isTransient && apiAttempt < maxApiAttempts) {
+          const delayMs = Math.floor(Math.random() * 1000) + (apiAttempt === 1 ? 1000 : apiAttempt === 2 ? 3000 : 7000);
+          console.warn(`[API Attempt ${apiAttempt}/${maxApiAttempts}] Gemini transient error. Retrying in ${delayMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        } else {
+          throw genError; // Max attempts reached or non-transient
         }
       }
-      if (hasDuplicates) continue;
-
-      // --- C. CHARACTER CONSISTENCY (Basic Check) ---
-      // This is a naive implementation: if they declared a character, check if a very similar but misspelled name exists in the text.
-      // A full spellchecker is complex, but we can instruct the LLM and check if declared characters are actually present.
-      let charsPresent = true;
-      if (storyJson.characters && Array.isArray(storyJson.characters)) {
-        const fullText = (storyJson.story + " " + (storyJson.chapters || []).map(c => c.content).join(" ")).toLowerCase();
-        for (const char of storyJson.characters) {
-          if (char.name && char.name.length > 3) {
-            const firstName = char.name.split(' ')[0].toLowerCase();
-            if (!fullText.includes(firstName)) {
-               // Character declared but not used -> slight hallucination/inconsistency
-               charsPresent = false;
-               validationError = `Character ${char.name} was not consistently used.`;
-               break;
-            }
-          }
-        }
-      }
-      if (!charsPresent) continue;
-
-      // Validation passed!
-      validationError = null;
-      storyJson.language = langCode;
-      break; 
     }
 
-    if (validationError) {
-      throw new Error(`Quality Validation Failed: ${validationError}`);
+    let responseText = result.response.text();
+
+    // Safely normalize markdown/code fences
+    responseText = responseText.trim();
+    if (responseText.startsWith('```json')) {
+      responseText = responseText.substring(7);
+    } else if (responseText.startsWith('```')) {
+      responseText = responseText.substring(3);
     }
+    if (responseText.endsWith('```')) {
+      responseText = responseText.substring(0, responseText.length - 3);
+    }
+    responseText = responseText.trim();
+
+    let storyJson;
+    try {
+      storyJson = JSON.parse(responseText);
+    } catch (parseError) {
+      throw new Error(`Quality Validation Failed: AI returned malformed JSON.`);
+    }
+
+    // Basic structure validation
+    if (!storyJson.title || (!storyJson.story && (!storyJson.chapters || storyJson.chapters.length === 0))) {
+      throw new Error(`Quality Validation Failed: AI returned incomplete story data.`);
+    }
+
+    storyJson.language = langCode;
 
     // Save to Firestore (aiGenerations) to preserve the existing architecture
     const generationDoc = {

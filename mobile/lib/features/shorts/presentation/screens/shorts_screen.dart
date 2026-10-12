@@ -1,12 +1,21 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:storyverse/core/theme/app_colors.dart';
-import 'package:storyverse/core/models/story_model.dart';
-import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
-import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
+import 'package:video_player/video_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+
+import 'package:storyverse/core/models/player_playback_state.dart';
+import 'package:storyverse/core/utils/video_url_helper.dart';
+import 'package:storyverse/core/utils/share_helper.dart';
+import 'package:storyverse/core/theme/design_tokens.dart';
+import 'package:storyverse/features/shorts/data/shorts_repository.dart';
+import 'package:storyverse/features/shorts/presentation/providers/shorts_provider.dart';
+import 'package:storyverse/features/shorts/presentation/widgets/shorts_overlay.dart';
+import 'package:storyverse/features/story/data/watch_history_repository.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:storyverse/features/library/data/library_repository.dart';
+import 'package:storyverse/features/video_player/presentation/widgets/vertical_video_view.dart';
 
 class ShortsScreen extends ConsumerStatefulWidget {
   const ShortsScreen({super.key});
@@ -15,338 +24,465 @@ class ShortsScreen extends ConsumerStatefulWidget {
   ConsumerState<ShortsScreen> createState() => _ShortsScreenState();
 }
 
-class _ShortsScreenState extends ConsumerState<ShortsScreen> {
+class _ShortsScreenState extends ConsumerState<ShortsScreen>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
+  int _currentIndex = 0;
+
+  VideoPlayerController? _controller;
+  PlayerPlaybackState _playbackState = PlayerPlaybackState.initializing;
+  String _errorMessage = '';
+  bool _isMuted = false;
+
+  // Transient tap feedback
+  bool _showTapFeedback = false;
+  bool _isPlayingFeedback = false;
+  Timer? _tapFeedbackTimer;
+
+  // End-of-video peek animation
+  late AnimationController _peekAnimationController;
+  late Animation<double> _peekOffsetAnimation;
+  bool _hasSavedThisLoop = false;
+
+  Timer? _progressSaveTimer;
+  late final WatchHistoryRepository _historyRepo;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WakelockPlus.enable();
+    _historyRepo = ref.read(watchHistoryRepositoryProvider);
+
+    _peekAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
+    _peekOffsetAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: -120.0)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 40,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween<double>(-120.0),
+        weight: 15,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -120.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeInOutCubic)),
+        weight: 45,
+      ),
+    ]).animate(_peekAnimationController);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _saveProgress();
+      _controller?.pause();
+    }
+  }
+
+  void _onFeedDataLoaded(List<ShortsItem> feed) {
+    if (_controller == null &&
+        feed.isNotEmpty &&
+        _playbackState != PlayerPlaybackState.error) {
+      _initializeCurrentShort(feed);
+    }
+  }
+
+  Future<void> _initializeCurrentShort(List<ShortsItem> feed) async {
+    if (_currentIndex < 0 || _currentIndex >= feed.length) return;
+
+    final item = feed[_currentIndex];
+
+    _progressSaveTimer?.cancel();
+    _saveProgress(item: item);
+
+    if (_controller != null) {
+      _controller!.removeListener(_onControllerUpdate);
+      _controller!.dispose();
+      _controller = null;
+    }
+
+    setState(() {
+      _hasSavedThisLoop = false;
+      _playbackState = PlayerPlaybackState.initializing;
+      _errorMessage = '';
+    });
+
+    final rawVideoUrl = item.episode.videoUrl.trim();
+    if (rawVideoUrl.isEmpty) {
+      setState(() {
+        _playbackState = PlayerPlaybackState.error;
+        _errorMessage = 'Video source is missing for this episode.';
+      });
+      return;
+    }
+
+    final normalizedUrl = VideoUrlHelper.normalize(rawVideoUrl);
+
+    try {
+      final controller =
+          VideoPlayerController.networkUrl(Uri.parse(normalizedUrl));
+      _controller = controller;
+
+      await controller.initialize().timeout(const Duration(seconds: 15));
+      await controller.setLooping(true);
+      await controller.setVolume(_isMuted ? 0.0 : 1.0);
+
+      controller.addListener(_onControllerUpdate);
+      await controller.play();
+
+      _startProgressSaveTimer(item);
+
+      if (mounted) {
+        setState(() {
+          _playbackState = PlayerPlaybackState.playing;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _playbackState = PlayerPlaybackState.error;
+          _errorMessage = 'Unable to play this short. Please try again.';
+        });
+      }
+    }
+  }
+
+  void _onControllerUpdate() {
+    if (!mounted) return;
+
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    final duration = controller.value.duration;
+    final position = controller.value.position;
+
+    // Detect near end: save watch progress and trigger peek animation suggestion
+    if (duration > Duration.zero &&
+        position >= duration - const Duration(milliseconds: 700)) {
+      if (!_hasSavedThisLoop) {
+        _hasSavedThisLoop = true;
+        _saveProgress(markCompleted: true);
+
+        // Trigger prominent upward peek suggestion
+        if (!_peekAnimationController.isAnimating) {
+          _peekAnimationController.forward(from: 0.0);
+        }
+      }
+    } else if (position < const Duration(seconds: 2)) {
+      // Looped back to start seamlessly
+      _hasSavedThisLoop = false;
+    }
+
+    if (_playbackState != PlayerPlaybackState.initializing &&
+        _playbackState != PlayerPlaybackState.error) {
+      final newState = controller.value.isPlaying
+          ? PlayerPlaybackState.playing
+          : PlayerPlaybackState.paused;
+      if (_playbackState != newState) {
+        setState(() {
+          _playbackState = newState;
+        });
+      }
+    }
+  }
+
+  void _startProgressSaveTimer(ShortsItem item) {
+    _progressSaveTimer?.cancel();
+    _progressSaveTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      _saveProgress(item: item);
+    });
+  }
+
+  void _saveProgress({ShortsItem? item, bool markCompleted = false}) {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    final feed = ref.read(shortsFeedProvider).asData?.value;
+    final currentItem = item ??
+        (feed != null && _currentIndex < feed.length
+            ? feed[_currentIndex]
+            : null);
+    if (currentItem == null) return;
+
+    final position = controller.value.position.inSeconds;
+    final total = controller.value.duration.inSeconds;
+    if (total <= 0) return;
+
+    _historyRepo.updateProgress(
+      storyId: currentItem.story.id,
+      episodeId: currentItem.episode.id,
+      progressSeconds: markCompleted ? total : position,
+      totalDuration: total,
+    );
+  }
+
+  void _togglePlayPause() {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    if (_playbackState == PlayerPlaybackState.completed) {
+      // Replay from start
+      controller.seekTo(Duration.zero);
+      controller.play();
+      setState(() {
+        _playbackState = PlayerPlaybackState.playing;
+      });
+      _showBriefFeedback(isPlaying: true);
+      return;
+    }
+
+    if (controller.value.isPlaying) {
+      controller.pause();
+      _saveProgress();
+      setState(() {
+        _playbackState = PlayerPlaybackState.paused;
+      });
+      _showBriefFeedback(isPlaying: false);
+    } else {
+      controller.play();
+      setState(() {
+        _playbackState = PlayerPlaybackState.playing;
+      });
+      _showBriefFeedback(isPlaying: true);
+    }
+  }
+
+  void _showBriefFeedback({required bool isPlaying}) {
+    _tapFeedbackTimer?.cancel();
+    setState(() {
+      _showTapFeedback = true;
+      _isPlayingFeedback = isPlaying;
+    });
+    _tapFeedbackTimer = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _showTapFeedback = false;
+        });
+      }
+    });
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    _controller?.setVolume(_isMuted ? 0.0 : 1.0);
+  }
+
+  void _onPageChanged(int index, List<ShortsItem> feed) {
+    if (_currentIndex == index) return;
+    setState(() {
+      _currentIndex = index;
+    });
+
+    if (index >= feed.length - 3) {
+      ref.read(shortsFeedProvider.notifier).loadMore();
+    }
+
+    _initializeCurrentShort(feed);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _saveProgress();
+    _tapFeedbackTimer?.cancel();
+    _progressSaveTimer?.cancel();
+    _peekAnimationController.dispose();
+    if (_controller != null) {
+      _controller!.removeListener(_onControllerUpdate);
+      _controller!.dispose();
+    }
     _pageController.dispose();
+    WakelockPlus.disable();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final storiesAsync = ref.watch(trendingStoriesProvider);
+    final feedAsync = ref.watch(shortsFeedProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
-      extendBodyBehindAppBar: true,
-      body: storiesAsync.when(
-        data: (stories) {
-          if (stories.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.video_library_outlined,
-                    color: AppColors.secondaryText,
-                    size: 64,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No Shorts Available',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+      backgroundColor: Colors.black,
+      body: feedAsync.when(
+        data: (feed) {
+          if (feed.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.video_library_outlined,
+                      color: DesignTokens.textMuted,
+                      size: 64,
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Short stories will appear here soon.',
-                    style: TextStyle(
-                      color: AppColors.secondaryText,
-                      fontSize: 14,
+                    const SizedBox(height: 16),
+                    Text(
+                      'No Shorts Available',
+                      style: DesignTokens.titleStyle.copyWith(fontSize: 20),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      'Published episodes from stories will appear here.',
+                      style: DesignTokens.bodyStyle,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () {
+                        ref.read(shortsFeedProvider.notifier).refreshFeed();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: DesignTokens.primaryAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Refresh'),
+                    ),
+                  ],
+                ),
               ),
             );
           }
 
+          _onFeedDataLoaded(feed);
+
           return PageView.builder(
             controller: _pageController,
             scrollDirection: Axis.vertical,
-            itemCount: stories.length,
+            itemCount: feed.length,
+            onPageChanged: (idx) => _onPageChanged(idx, feed),
             itemBuilder: (context, index) {
-              return _ShortStoryCard(
-                story: stories[index],
-                index: index,
-                total: stories.length,
+              final item = feed[index];
+              final isCurrent = index == _currentIndex;
+
+              return Consumer(
+                builder: (context, ref, _) {
+                  final isFavAsync =
+                      ref.watch(isFavoriteProvider(item.story.id));
+                  final isSavedAsync =
+                      ref.watch(isInLibraryProvider(item.story.id));
+                  final isFavorite = isFavAsync.value ?? false;
+                  final isSaved = isSavedAsync.value ?? false;
+
+                  final hasGenuineError = isCurrent &&
+                      _playbackState == PlayerPlaybackState.error;
+                  final isLoading = isCurrent &&
+                      _playbackState == PlayerPlaybackState.initializing;
+                  final isCompleted = isCurrent && _hasSavedThisLoop;
+
+                  return AnimatedBuilder(
+                    animation: _peekAnimationController,
+                    builder: (context, child) {
+                      double offset = 0.0;
+                      if (isCurrent) {
+                        offset = _peekOffsetAnimation.value;
+                      } else if (index == _currentIndex + 1) {
+                        offset = _peekOffsetAnimation.value;
+                      }
+                      return Transform.translate(
+                        offset: Offset(0, offset),
+                        child: child,
+                      );
+                    },
+                    child: VerticalVideoView(
+                      controller: isCurrent ? _controller : null,
+                      thumbnailUrl: item.episode.thumbnailUrl.isNotEmpty
+                          ? item.episode.thumbnailUrl
+                          : item.story.thumbnailUrl,
+                      isLoading: isLoading,
+                      hasError: hasGenuineError,
+                      errorMessage: _errorMessage,
+                      onRetry: () => _initializeCurrentShort(feed),
+                      overlay: isCurrent
+                          ? ShortsOverlay(
+                              story: item.story,
+                              episode: item.episode,
+                              isMuted: _isMuted,
+                              isFavorite: isFavorite,
+                              isInLibrary: isSaved,
+                              isCompleted: isCompleted,
+                              showTapFeedback: _showTapFeedback,
+                              isPlayingFeedback: _isPlayingFeedback,
+                              onToggleMute: _toggleMute,
+                              onToggleFavorite: () async {
+                                await ref
+                                    .read(libraryRepositoryProvider)
+                                    .toggleFavorite(
+                                      item.story.id,
+                                      !isFavorite,
+                                    );
+                              },
+                              onToggleBookmark: () async {
+                                await ref
+                                    .read(libraryRepositoryProvider)
+                                    .toggleLibrary(
+                                      item.story.id,
+                                      !isSaved,
+                                    );
+                              },
+                              onShare: () {
+                                ShareHelper.shareStory(
+                                  context: context,
+                                  storyId: item.story.id,
+                                  title: item.story.title,
+                                  episodeTitle: item.episode.title,
+                                );
+                              },
+                              onViewStory: () {
+                                _saveProgress(item: item);
+                                _controller?.pause();
+                                context.push('/story/${item.story.id}');
+                              },
+                              onTapVideo: _togglePlayPause,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  );
+                },
               );
             },
           );
         },
         loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primaryAccent),
+          child: CircularProgressIndicator(color: DesignTokens.primaryAccent),
         ),
         error: (e, _) => Center(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const Icon(
+                Icons.error_outline_rounded,
+                color: DesignTokens.primaryAccent,
+                size: 48,
+              ),
               const SizedBox(height: 16),
               Text(
-                'Something went wrong',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                e.toString(),
-                style: const TextStyle(
-                  color: AppColors.secondaryText,
-                  fontSize: 13,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ShortStoryCard extends ConsumerStatefulWidget {
-  final StoryModel story;
-  final int index;
-  final int total;
-
-  const _ShortStoryCard({
-    required this.story,
-    required this.index,
-    required this.total,
-  });
-
-  @override
-  ConsumerState<_ShortStoryCard> createState() => _ShortStoryCardState();
-}
-
-class _ShortStoryCardState extends ConsumerState<_ShortStoryCard> {
-  bool _isLiked = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final isFavoriteAsync = ref.watch(isFavoriteProvider(widget.story.id));
-    final isFavorite = isFavoriteAsync.value ?? false;
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Background image
-        NetworkImageWithFallback(
-          imageUrl: widget.story.bannerUrl ?? widget.story.thumbnailUrl,
-          fit: BoxFit.cover,
-        ),
-
-        // Dark gradient overlay
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.black.withValues(alpha: 0.3),
-                Colors.transparent,
-                Colors.black.withValues(alpha: 0.8),
-              ],
-              stops: const [0.0, 0.4, 1.0],
-            ),
-          ),
-        ),
-
-        // Right side actions
-        Positioned(
-          right: 16,
-          bottom: 24,
-          child: Column(
-            children: [
-              _ActionButton(
-                icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                label: 'Like',
-                color: _isLiked ? Colors.red : Colors.white,
-                onTap: () {
-                  setState(() {
-                    _isLiked = !_isLiked;
-                  });
-                },
-              ),
-              const SizedBox(height: 20),
-              _ActionButton(
-                icon: isFavorite ? Icons.bookmark : Icons.bookmark_border,
-                label: 'Save',
-                color: isFavorite ? AppColors.primaryAccent : Colors.white,
-                onTap: () async {
-                  await ref
-                      .read(libraryRepositoryProvider)
-                      .toggleFavorite(widget.story.id, !isFavorite);
-                  ref.invalidate(favoriteStoriesProvider);
-                },
-              ),
-              const SizedBox(height: 20),
-              _ActionButton(
-                icon: Icons.share_outlined,
-                label: 'Share',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Share coming soon!')),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              _ActionButton(
-                icon: Icons.info_outline,
-                label: 'Details',
-                onTap: () => context.push('/story/${widget.story.id}'),
-              ),
-            ],
-          ),
-        ),
-
-        // Bottom info
-        Positioned(
-          left: 16,
-          right: 80,
-          bottom: 24,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryAccent,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      widget.story.genreId.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.story.language,
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                widget.story.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.story.description,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.4,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+                'Failed to load shorts feed',
+                style: DesignTokens.titleStyle.copyWith(fontSize: 18),
               ),
               const SizedBox(height: 16),
-              GestureDetector(
-                onTap: () => context.push('/story/${widget.story.id}'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.play_arrow, color: Colors.black, size: 20),
-                      SizedBox(width: 6),
-                      Text(
-                        'Watch Now',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+              ElevatedButton(
+                onPressed: () {
+                  ref.read(shortsFeedProvider.notifier).refreshFeed();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: DesignTokens.primaryAccent,
+                  foregroundColor: Colors.white,
                 ),
+                child: const Text('Retry'),
               ),
             ],
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    this.color = Colors.white,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.4),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.2),
-              ),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }

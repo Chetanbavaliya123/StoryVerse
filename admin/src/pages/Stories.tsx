@@ -222,7 +222,14 @@ export default function Stories() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-2">
-                            <span className="font-headline-sm text-on-surface font-bold text-lg">{story.title || 'Untitled'}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-headline-sm text-on-surface font-bold text-lg">{story.title || 'Untitled'}</span>
+                              {story.isDemo && (
+                                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded text-[10px] font-bold tracking-widest uppercase">
+                                  DEMO
+                                </span>
+                              )}
+                            </div>
                             <div className="flex flex-wrap items-center gap-2 font-label-sm text-outline">
                               {story.categoryId && (
                                 <span className="bg-surface-container-highest px-2 py-0.5 rounded text-xs uppercase tracking-wider text-on-surface-variant">

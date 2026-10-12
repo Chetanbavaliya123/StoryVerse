@@ -10,6 +10,10 @@ final isFavoriteProvider = StreamProvider.family<bool, String>((ref, storyId) {
   return ref.watch(libraryRepositoryProvider).isFavorite(storyId);
 });
 
+final isInLibraryProvider = StreamProvider.family<bool, String>((ref, storyId) {
+  return ref.watch(libraryRepositoryProvider).isInLibrary(storyId);
+});
+
 final favoriteStoriesProvider = StreamProvider<List<StoryModel>>((ref) async* {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/widgets/storyverse_logo.dart';
 
 class NetworkImageWithFallback extends StatelessWidget {
@@ -50,9 +49,20 @@ class NetworkImageWithFallback extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: AppColors.primarySurface,
-      child: const Center(
-        child: CircularProgressIndicator(color: AppColors.primaryAccent),
+      decoration: const BoxDecoration(
+        color: Color(0xFF16161A),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E1E24), Color(0xFF121215)],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.movie_creation_outlined,
+          color: Colors.white.withValues(alpha: 0.10),
+          size: (width != null && width! < 100) ? 18 : 26,
+        ),
       ),
     );
   }

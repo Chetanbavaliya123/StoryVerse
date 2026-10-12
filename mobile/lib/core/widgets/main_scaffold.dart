@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:storyverse/core/theme/app_colors.dart';
-import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
 
 class MainScaffold extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -34,44 +32,44 @@ class MainScaffold extends StatelessWidget {
               children: [
                 _NavItem(
                   activeIcon: Icons.home,
-                inactiveIcon: Icons.home_outlined,
-                label: 'Home',
-                isSelected: navigationShell.currentIndex == 0,
-                onTap: () => _goBranch(0),
-              ),
-              _NavItem(
-                activeIcon: Icons.play_circle,
-                inactiveIcon: Icons.play_circle_outline,
-                label: 'Shorts',
-                isSelected: navigationShell.currentIndex == 1,
-                onTap: () => _goBranch(1),
-              ),
-              _NavItem(
-                activeIcon: Icons.diamond,
-                inactiveIcon: Icons.diamond_outlined,
-                label: 'Premium',
-                isSelected: navigationShell.currentIndex == 2,
-                onTap: () => _goBranch(2),
-              ),
-              _NavItem(
-                activeIcon: Icons.bookmark,
-                inactiveIcon: Icons.bookmark_outline,
-                label: 'My List',
-                isSelected: navigationShell.currentIndex == 3,
-                onTap: () => _goBranch(3),
-              ),
-              _NavItem(
-                activeIcon: Icons.sentiment_satisfied_alt,
-                inactiveIcon: Icons.sentiment_satisfied_alt,
-                isProfile: true,
-                label: 'Profile',
-                isSelected: navigationShell.currentIndex == 4,
-                onTap: () => _goBranch(4),
-              ),
-            ],
+                  inactiveIcon: Icons.home_outlined,
+                  label: 'Home',
+                  isSelected: navigationShell.currentIndex == 0,
+                  onTap: () => _goBranch(0),
+                ),
+                _NavItem(
+                  activeIcon: Icons.play_circle,
+                  inactiveIcon: Icons.play_circle_outline,
+                  label: 'Shorts',
+                  isSelected: navigationShell.currentIndex == 1,
+                  onTap: () => _goBranch(1),
+                ),
+                _NavItem(
+                  activeIcon: Icons.diamond,
+                  inactiveIcon: Icons.diamond_outlined,
+                  label: 'Premium',
+                  isSelected: navigationShell.currentIndex == 2,
+                  onTap: () => _goBranch(2),
+                ),
+                _NavItem(
+                  activeIcon: Icons.bookmark,
+                  inactiveIcon: Icons.bookmark_outline,
+                  label: 'My List',
+                  isSelected: navigationShell.currentIndex == 3,
+                  onTap: () => _goBranch(3),
+                ),
+                _NavItem(
+                  activeIcon: Icons.sentiment_satisfied_alt,
+                  inactiveIcon: Icons.sentiment_satisfied_alt,
+                  isProfile: true,
+                  label: 'Profile',
+                  isSelected: navigationShell.currentIndex == 4,
+                  onTap: () => _goBranch(4),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -129,10 +127,6 @@ class _NavItem extends StatelessWidget {
   }
 
   Widget _buildIcon(IconData? iconData, Color color) {
-    return Icon(
-      iconData,
-      color: color,
-      size: 26,
-    );
+    return Icon(iconData, color: color, size: 26);
   }
 }

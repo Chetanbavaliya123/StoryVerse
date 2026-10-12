@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'core/theme/app_theme.dart';
-import 'core/theme/app_colors.dart';
 import 'firebase_options.dart';
 import 'package:storyverse/core/routing/app_router.dart';
 import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
@@ -74,123 +74,182 @@ class BrandSplash extends ConsumerStatefulWidget {
 }
 
 class _BrandSplashState extends ConsumerState<BrandSplash>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-  bool _done = false;
+    with TickerProviderStateMixin {
+  // Intro animation: 1300ms (+0.3s added as requested for smooth cinematic entrance)
+  late final AnimationController _introController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  );
+
+  // Dedicated exit animation: 400ms for buttery-smooth dissolve
+  late final AnimationController _exitController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+  );
+
   bool _isAnimatingOut = false;
+  bool _isCompletelyDone = false;
+  Timer? _fallbackTimer;
 
   @override
   void initState() {
     super.initState();
-    _c.addStatusListener((status) {
+    _introController.addStatusListener((status) {
       if (status == AnimationStatus.completed) _checkCompletion();
     });
-    _c.forward();
+
+    _exitController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted) setState(() => _isCompletelyDone = true);
+      }
+    });
+
+    // Safety timeout fallback: if network/auth stalls, don't keep user blocked forever
+    _fallbackTimer = Timer(const Duration(milliseconds: 3500), () {
+      if (mounted && !_isAnimatingOut) {
+        _triggerExit();
+      }
+    });
+
+    _introController.forward();
   }
 
-  void _checkCompletion() async {
-    if (_c.isCompleted && !_isAnimatingOut) {
+  void _triggerExit() {
+    if (_isAnimatingOut) return;
+    _isAnimatingOut = true;
+    _fallbackTimer?.cancel();
+    if (mounted) {
+      _exitController.forward();
+    }
+  }
+
+  void _checkCompletion() {
+    if (_introController.isCompleted && !_isAnimatingOut) {
       final authState = ref.read(authStateChangesProvider);
-      
-      bool readyToTransition = false;
+
       if (authState.isLoading) {
         return; // Wait for auth state
-      } else if (authState.value != null) {
-        // Logged in. Check if data is loaded.
-        final trending = ref.read(trendingStoriesProvider);
-        if (trending.isLoading || !trending.hasValue) {
-          return; // Wait for data to load
-        }
-        readyToTransition = true;
-      } else {
-        // Not logged in. Can transition immediately.
-        readyToTransition = true;
       }
 
-      if (readyToTransition) {
-        _isAnimatingOut = true;
-        // Small buffer to ensure rendering is smooth
-        await Future.delayed(const Duration(milliseconds: 100));
-        if (mounted) setState(() => _done = true);
+      if (authState.value != null) {
+        // Logged in: Wait for real cloud trending stories to load before exiting splash
+        final trending = ref.read(trendingStoriesProvider);
+        if (trending.isLoading || !trending.hasValue) {
+          return; // Stay on icon screen while real data loads in background
+        }
       }
+
+      _triggerExit();
     }
   }
 
   @override
-  void dispose() { 
-    _c.dispose(); 
-    super.dispose(); 
+  void dispose() {
+    _fallbackTimer?.cancel();
+    _introController.dispose();
+    _exitController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(authStateChangesProvider, (_, __) => _checkCompletion());
-    ref.listen(trendingStoriesProvider, (_, __) => _checkCompletion());
+    if (_isCompletelyDone) {
+      return const SizedBox.shrink();
+    }
+
+    ref.listen(authStateChangesProvider, (_, _) => _checkCompletion());
+    ref.listen(trendingStoriesProvider, (_, _) => _checkCompletion());
 
     return IgnorePointer(
-      ignoring: _done,
-      child: AnimatedScale(
-        scale: _done ? 1.15 : 1.0,
-        duration: const Duration(milliseconds: 1000),
-        curve: Curves.easeInOutCubic,
-        child: AnimatedOpacity(
-          opacity: _done ? 0 : 1,
-          duration: const Duration(milliseconds: 1000),
-          curve: Curves.easeInOutCubic,
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                colors: [Color(0xFF000000), Color(0xFF2A0509)]),
-            ),
-            child: Center(
-              child: AnimatedBuilder(
-                animation: _c,
-                child: Container(
-                  decoration: const BoxDecoration(boxShadow: [
-                    BoxShadow(
-                      color: Color(0x40E53935), // Fixed alpha (~0.25) for better performance
-                      blurRadius: 40, // Reduced from 60
-                      spreadRadius: 4,
-                    ),
-                  ]),
-                  child: Image.asset(
-                    'assets/brand/icon_fg_1024.png', 
-                    width: 140,
-                    filterQuality: FilterQuality.medium, // Optimize image rendering
+      ignoring: _isAnimatingOut,
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_introController, _exitController]),
+          child: Image.asset(
+            'assets/brand/icon_fg_1024.png',
+            width: 140,
+            filterQuality: FilterQuality.medium,
+          ),
+          builder: (context, iconChild) {
+            final introVal = _introController.value;
+            final logoIntro = Curves.easeOutCubic.transform(
+              (introVal / 0.55).clamp(0.0, 1.0),
+            );
+            final textIntro = Curves.easeOutCubic.transform(
+              ((introVal - 0.40) / 0.50).clamp(0.0, 1.0),
+            );
+
+            final exitProgress = Curves.easeOutCubic.transform(
+              _exitController.value,
+            );
+            final exitOpacity = (1.0 - exitProgress).clamp(0.0, 1.0);
+            final exitScale = 1.0 + (0.04 * exitProgress);
+
+            return Opacity(
+              opacity: exitOpacity,
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFF000000), Color(0xFF2A0509)],
                   ),
                 ),
-                builder: (context, child) {
-                  final logo = Curves.easeOut.transform((_c.value / 0.5).clamp(0, 1));
-                  final text = Curves.easeIn.transform(((_c.value - 0.5) / 0.4).clamp(0, 1));
-                  
-                  return Column(mainAxisSize: MainAxisSize.min, children: [
-                    Opacity(
-                      opacity: logo,
-                      child: Transform.scale(
-                        scale: 0.9 + 0.1 * logo,
-                        child: child, // Use pre-built child here
-                      ),
+                child: Center(
+                  child: Transform.scale(
+                    scale: (0.92 + 0.08 * logoIntro) * exitScale,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Opacity(
+                          opacity: logoIntro,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x35E53935),
+                                  blurRadius: 32,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: iconChild,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Opacity(
+                          opacity: textIntro,
+                          child: const Text(
+                            'STORYVERSE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 6,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Opacity(
+                          opacity: textIntro * 0.7,
+                          child: const Text(
+                            'Stories Beyond Limits',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              letterSpacing: 2,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                    Opacity(
-                      opacity: text, 
-                      child: const Text('STORYVERSE',
-                        style: TextStyle(color: Colors.white, fontSize: 24,
-                          fontWeight: FontWeight.w800, letterSpacing: 6,
-                          decoration: TextDecoration.none))),
-                    const SizedBox(height: 8),
-                    Opacity(
-                      opacity: text * 0.7, 
-                      child: const Text('Stories Beyond Limits',
-                        style: TextStyle(color: Colors.white70, fontSize: 13,
-                          letterSpacing: 2, decoration: TextDecoration.none))),
-                  ]);
-                },
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

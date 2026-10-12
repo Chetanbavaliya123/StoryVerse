@@ -7,8 +7,6 @@ import 'package:storyverse/core/models/story_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:storyverse/features/library/data/library_repository.dart';
-import 'package:storyverse/core/models/continue_watching_item.dart';
-import 'package:storyverse/core/widgets/story_card.dart';
 
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key});
