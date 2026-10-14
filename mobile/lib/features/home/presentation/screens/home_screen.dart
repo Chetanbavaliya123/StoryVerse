@@ -35,6 +35,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 90.0, right: 8.0),
+        child: FloatingActionButton(
+          heroTag: 'ai_hub_fab',
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            context.push('/ai/assistant');
+          },
+          backgroundColor: AppColors.primaryAccent,
+          elevation: 6,
+          child: const Icon(
+            Icons.chat_bubble_outline_rounded,
+            color: Colors.white,
+            size: 26,
+          ),
+        ),
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(
