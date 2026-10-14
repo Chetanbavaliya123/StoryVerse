@@ -16,6 +16,7 @@ import 'package:storyverse/features/story/data/watch_history_repository.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:storyverse/features/library/data/library_repository.dart';
 import 'package:storyverse/features/profile/data/user_repository.dart';
+import 'package:storyverse/core/routing/app_router.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/vertical_video_view.dart';
 
 class ShortsScreen extends ConsumerStatefulWidget {
@@ -31,7 +32,7 @@ class ShortsScreen extends ConsumerStatefulWidget {
 }
 
 class _ShortsScreenState extends ConsumerState<ShortsScreen>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin, RouteAware {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
   bool _hasJumpedToInitial = false;
@@ -87,11 +88,54 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute != null) {
+      appRouteObserver.subscribe(this, modalRoute);
+    }
+  }
+
+  @override
+  void didPushNext() {
+    // Another route was pushed on top of Shorts
+    _controller?.pause();
+    _controller?.setVolume(0.0);
+    WakelockPlus.disable();
+  }
+
+  @override
+  void didPopNext() {
+    // Returned back to Shorts from a pushed route
+    final isShortsActive = ref.read(isShortsActiveProvider);
+    if (isShortsActive &&
+        _playbackState != PlayerPlaybackState.paused &&
+        _controller != null) {
+      final isMuted = ref.read(shortsMuteProvider);
+      _controller?.setVolume(isMuted ? 0.0 : 1.0);
+      _controller?.play();
+      WakelockPlus.enable();
+    }
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _saveProgress();
       _controller?.pause();
+      _controller?.setVolume(0.0);
+      WakelockPlus.disable();
+    } else if (state == AppLifecycleState.resumed) {
+      final isShortsActive = ref.read(isShortsActiveProvider);
+      if (isShortsActive &&
+          _playbackState != PlayerPlaybackState.paused &&
+          _controller != null) {
+        final isMuted = ref.read(shortsMuteProvider);
+        _controller?.setVolume(isMuted ? 0.0 : 1.0);
+        _controller?.play();
+        WakelockPlus.enable();
+      }
     }
   }
 
@@ -382,16 +426,21 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
 
   @override
   void dispose() {
+    appRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _saveProgress();
     _tapFeedbackTimer?.cancel();
     _progressSaveTimer?.cancel();
     _peekAnimationController.dispose();
     if (_controller != null) {
+      _controller!.pause();
+      _controller!.setVolume(0.0);
       _controller!.removeListener(_onControllerUpdate);
       _controller!.dispose();
+      _controller = null;
     }
     _preloadedController?.dispose();
+    _preloadedController = null;
     _pageController.dispose();
     WakelockPlus.disable();
     super.dispose();
@@ -399,6 +448,22 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<bool>(isShortsActiveProvider, (prev, isActive) {
+      if (!isActive) {
+        _controller?.pause();
+        _controller?.setVolume(0.0);
+        WakelockPlus.disable();
+      } else {
+        if (_playbackState != PlayerPlaybackState.paused &&
+            _controller != null) {
+          final isMuted = ref.read(shortsMuteProvider);
+          _controller?.setVolume(isMuted ? 0.0 : 1.0);
+          _controller?.play();
+          WakelockPlus.enable();
+        }
+      }
+    });
+
     final feedAsync = ref.watch(shortsFeedProvider);
 
     return Scaffold(

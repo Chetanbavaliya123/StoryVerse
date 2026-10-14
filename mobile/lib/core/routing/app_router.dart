@@ -75,11 +75,25 @@ CustomTransitionPage _buildPageWithTransition({
   );
 }
 
+final appRouteObserver = RouteObserver<ModalRoute<void>>();
+
+class ShortsActiveNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  @override
+  set state(bool value) => super.state = value;
+}
+
+final isShortsActiveProvider =
+    NotifierProvider<ShortsActiveNotifier, bool>(ShortsActiveNotifier.new);
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
+    observers: [appRouteObserver],
     initialLocation: '/',
     redirect: (context, state) {
       if (authState.isLoading || !authState.hasValue) {

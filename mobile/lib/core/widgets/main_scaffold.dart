@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:storyverse/core/routing/app_router.dart';
 
-class MainScaffold extends StatelessWidget {
+class MainScaffold extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainScaffold({super.key, required this.navigationShell});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final isShorts = navigationShell.currentIndex == 1;
+      if (ref.read(isShortsActiveProvider) != isShorts) {
+        ref.read(isShortsActiveProvider.notifier).state = isShorts;
+      }
+    });
+
     return Scaffold(
       extendBody: false, // Solid navbar should not overlap body content
       body: navigationShell,
@@ -35,28 +44,28 @@ class MainScaffold extends StatelessWidget {
                   inactiveIcon: Icons.home_outlined,
                   label: 'Home',
                   isSelected: navigationShell.currentIndex == 0,
-                  onTap: () => _goBranch(0),
+                  onTap: () => _goBranch(ref, 0),
                 ),
                 _NavItem(
                   activeIcon: Icons.play_circle,
                   inactiveIcon: Icons.play_circle_outline,
                   label: 'Shorts',
                   isSelected: navigationShell.currentIndex == 1,
-                  onTap: () => _goBranch(1),
+                  onTap: () => _goBranch(ref, 1),
                 ),
                 _NavItem(
                   activeIcon: Icons.diamond,
                   inactiveIcon: Icons.diamond_outlined,
                   label: 'Premium',
                   isSelected: navigationShell.currentIndex == 2,
-                  onTap: () => _goBranch(2),
+                  onTap: () => _goBranch(ref, 2),
                 ),
                 _NavItem(
                   activeIcon: Icons.bookmark,
                   inactiveIcon: Icons.bookmark_outline,
                   label: 'My List',
                   isSelected: navigationShell.currentIndex == 3,
-                  onTap: () => _goBranch(3),
+                  onTap: () => _goBranch(ref, 3),
                 ),
                 _NavItem(
                   activeIcon: Icons.sentiment_satisfied_alt,
@@ -64,7 +73,7 @@ class MainScaffold extends StatelessWidget {
                   isProfile: true,
                   label: 'Profile',
                   isSelected: navigationShell.currentIndex == 4,
-                  onTap: () => _goBranch(4),
+                  onTap: () => _goBranch(ref, 4),
                 ),
               ],
             ),
@@ -74,7 +83,8 @@ class MainScaffold extends StatelessWidget {
     );
   }
 
-  void _goBranch(int index) {
+  void _goBranch(WidgetRef ref, int index) {
+    ref.read(isShortsActiveProvider.notifier).state = (index == 1);
     navigationShell.goBranch(
       index,
       initialLocation: index == navigationShell.currentIndex,

@@ -29,7 +29,8 @@ class VideoPlayerScreen extends ConsumerStatefulWidget {
   ConsumerState<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
+class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen>
+    with WidgetsBindingObserver {
   PageController? _pageController;
   int _currentIndex = 0;
   StoryModel? _story;
@@ -57,9 +58,39 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WakelockPlus.enable();
     _historyRepo = ref.read(watchHistoryRepositoryProvider);
     _loadStoryAndEpisodes();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _saveProgress();
+      _controller?.pause();
+      WakelockPlus.disable();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _saveProgress();
+    _cancelCountdown();
+    _progressSaveTimer?.cancel();
+    _hideControlsTimer?.cancel();
+    _tapFeedbackTimer?.cancel();
+    _pageController?.dispose();
+    if (_controller != null) {
+      _controller!.pause();
+      _controller!.removeListener(_onControllerUpdate);
+      _controller!.dispose();
+      _controller = null;
+    }
+    WakelockPlus.disable();
+    super.dispose();
   }
 
   Future<void> _loadStoryAndEpisodes() async {
@@ -396,22 +427,6 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       _currentIndex = index;
     });
     _initializeCurrentEpisode();
-  }
-
-  @override
-  void dispose() {
-    _saveProgress();
-    _cancelCountdown();
-    _hideControlsTimer?.cancel();
-    _progressSaveTimer?.cancel();
-    _tapFeedbackTimer?.cancel();
-    if (_controller != null) {
-      _controller!.removeListener(_onControllerUpdate);
-      _controller!.dispose();
-    }
-    _pageController?.dispose();
-    WakelockPlus.disable();
-    super.dispose();
   }
 
   void _openEpisodeSelector() {
