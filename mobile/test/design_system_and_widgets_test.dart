@@ -205,7 +205,7 @@ void main() {
       rating: 4.9,
     );
 
-    testWidgets('StoryCard poster variant displays title, rating, and VIP badge', (tester) async {
+    testWidgets('StoryCard poster variant displays title, rating, and no VIP gating', (tester) async {
       bool tapped = false;
 
       await tester.pumpWidget(
@@ -227,7 +227,7 @@ void main() {
 
       expect(find.text('Neon Shadows'), findsOneWidget);
       expect(find.text('12 Episodes'), findsOneWidget);
-      expect(find.text('VIP'), findsOneWidget);
+      expect(find.text('VIP'), findsNothing);
 
       await tester.tap(find.text('Neon Shadows'));
       await tester.pump(const Duration(milliseconds: 200));

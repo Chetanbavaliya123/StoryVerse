@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
@@ -124,8 +123,9 @@ class HomeHeader extends ConsumerWidget {
   }
 }
 
-class HomeCategoryTabs extends ConsumerWidget {
-  const HomeCategoryTabs({super.key});
+class HomeCategoryTabs extends StatelessWidget implements PreferredSizeWidget {
+  final TabController controller;
+  const HomeCategoryTabs({super.key, required this.controller});
 
   static const List<String> categories = [
     'Popular',
@@ -137,56 +137,37 @@ class HomeCategoryTabs extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeTab = ref.watch(homeActiveTabProvider);
+  Size get preferredSize => const Size.fromHeight(46);
 
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       height: 46,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
+      child: TabBar(
+        controller: controller,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = activeTab == category;
-
-          return GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              ref.read(homeActiveTabProvider.notifier).setTab(category);
-            },
-            child: Container(
-              margin: const EdgeInsets.only(right: 22),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    category,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.white54,
-                      fontSize: 15,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    height: 3,
-                    width: isSelected ? 22 : 0,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primaryAccent
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+        indicatorColor: AppColors.primaryAccent,
+        indicatorWeight: 3.0,
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerColor: Colors.transparent,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white54,
+        labelStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+        tabs: categories
+            .map((cat) => Tab(
+                  text: cat,
+                  height: 42,
+                ))
+            .toList(),
       ),
     );
   }

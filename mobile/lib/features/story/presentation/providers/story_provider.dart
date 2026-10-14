@@ -174,8 +174,13 @@ final storiesByGenreProvider =
         final list = catalog.isNotEmpty
             ? catalog
             : ref.read(storyRepositoryProvider).getDemoStories();
+        final target = genreId.trim().toLowerCase();
         return list
-            .where((s) => s.genreId.toLowerCase() == genreId.toLowerCase())
+            .where((s) {
+              final g = s.genreId.trim().toLowerCase();
+              final tags = s.tags.map((t) => t.trim().toLowerCase()).toList();
+              return g == target || tags.contains(target);
+            })
             .take(20)
             .toList();
       });
