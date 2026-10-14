@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:storyverse/core/design_system/tokens.dart';
 import 'app_colors.dart';
 import 'app_typography.dart';
 
@@ -24,6 +25,7 @@ class AppTheme {
       surface: const Color(0xFF1A1A1A),
       accent: const Color(0xFFE53935),
       border: const Color(0xFF262626),
+      tokens: StoryVerseThemeTokens.oled,
     );
   }
 
@@ -34,6 +36,7 @@ class AppTheme {
       surface: const Color(0xFF202630),
       accent: const Color(0xFFE53935),
       border: const Color(0xFF2C3442),
+      tokens: StoryVerseThemeTokens.charcoal,
     );
   }
 
@@ -44,6 +47,7 @@ class AppTheme {
       surface: const Color(0xFF2D1115),
       accent: const Color(0xFFFF2A4A),
       border: const Color(0xFF3F171D),
+      tokens: StoryVerseThemeTokens.crimson,
     );
   }
 
@@ -53,11 +57,13 @@ class AppTheme {
     required Color surface,
     required Color accent,
     required Color border,
+    required StoryVerseThemeTokens tokens,
   }) {
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: background,
       primaryColor: accent,
+      extensions: [tokens],
       colorScheme: ColorScheme.dark(
         primary: accent,
         secondary: accent,

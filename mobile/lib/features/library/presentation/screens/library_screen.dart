@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
@@ -22,6 +23,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
   late TabController _tabController;
   final Set<String> _hiddenStoryIds = {};
   final Map<String, Timer> _pendingDeletionTimers = {};
+
+  Future<void> _onRefresh() async {
+    HapticFeedback.lightImpact();
+    ref.invalidate(detailedWatchHistoryProvider);
+    ref.invalidate(favoriteStoriesProvider);
+    ref.invalidate(savedStoriesProvider);
+    ref.invalidate(aiStoriesProvider);
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
 
   @override
   void initState() {
@@ -188,10 +198,30 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildHistoryTab(),
-          _buildFavoritesTab(),
-          _buildDownloadsTab(),
-          _buildAiStoriesTab(),
+          RefreshIndicator(
+            color: AppColors.primaryAccent,
+            backgroundColor: const Color(0xFF1E1E24),
+            onRefresh: _onRefresh,
+            child: _buildHistoryTab(),
+          ),
+          RefreshIndicator(
+            color: AppColors.primaryAccent,
+            backgroundColor: const Color(0xFF1E1E24),
+            onRefresh: _onRefresh,
+            child: _buildFavoritesTab(),
+          ),
+          RefreshIndicator(
+            color: AppColors.primaryAccent,
+            backgroundColor: const Color(0xFF1E1E24),
+            onRefresh: _onRefresh,
+            child: _buildDownloadsTab(),
+          ),
+          RefreshIndicator(
+            color: AppColors.primaryAccent,
+            backgroundColor: const Color(0xFF1E1E24),
+            onRefresh: _onRefresh,
+            child: _buildAiStoriesTab(),
+          ),
         ],
       ),
     );
@@ -206,10 +236,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
             .where((item) => !_hiddenStoryIds.contains(item.story.id))
             .toList();
         if (visibleItems.isEmpty) {
-          return const EmptyState(
-            icon: Icons.history_rounded,
-            title: 'No Watch History',
-            message: 'Stories you start watching will appear here.',
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.55,
+              alignment: Alignment.center,
+              child: const EmptyState(
+                icon: Icons.history_rounded,
+                title: 'No Watch History',
+                message: 'Stories you start watching will appear here.',
+              ),
+            ),
           );
         }
         return Column(
@@ -311,10 +348,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
     return favoritesAsync.when(
       data: (stories) {
         if (stories.isEmpty) {
-          return const EmptyState(
-            icon: Icons.favorite_border_rounded,
-            title: 'No Favorites Yet',
-            message: 'Tap the heart icon on any story to save it here.',
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.55,
+              alignment: Alignment.center,
+              child: const EmptyState(
+                icon: Icons.favorite_border_rounded,
+                title: 'No Favorites Yet',
+                message: 'Tap the heart icon on any story to save it here.',
+              ),
+            ),
           );
         }
         return ListView.builder(
@@ -341,10 +385,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
     return libraryAsync.when(
       data: (stories) {
         if (stories.isEmpty) {
-          return const EmptyState(
-            icon: Icons.bookmark_border_rounded,
-            title: 'Your Library is Empty',
-            message: 'Save episodes to access them here.',
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.55,
+              alignment: Alignment.center,
+              child: const EmptyState(
+                icon: Icons.bookmark_border_rounded,
+                title: 'Your Library is Empty',
+                message: 'Save episodes to access them here.',
+              ),
+            ),
           );
         }
         return ListView.builder(
@@ -374,12 +425,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
 
     return aiStoriesAsync.when(
       data: (stories) {
-        final visibleStories = stories.where((s) => !_hiddenStoryIds.contains(s.id)).toList();
+        final visibleStories =
+            stories.where((s) => !_hiddenStoryIds.contains(s.id)).toList();
         if (visibleStories.isEmpty) {
-          return const EmptyState(
-            icon: Icons.auto_awesome,
-            title: 'No AI Stories',
-            message: 'Generate and save AI stories to see them here.',
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.55,
+              alignment: Alignment.center,
+              child: const EmptyState(
+                icon: Icons.auto_awesome,
+                title: 'No AI Stories',
+                message: 'Generate and save AI stories to see them here.',
+              ),
+            ),
           );
         }
         return ListView.builder(

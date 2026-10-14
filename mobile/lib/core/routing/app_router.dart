@@ -90,11 +90,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isLoggingIn =
           state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup' ||
-          state.matchedLocation == '/forgot-password' ||
-          state.matchedLocation == '/onboarding';
+          state.matchedLocation == '/forgot-password';
+      final isOnboarding = state.matchedLocation == '/onboarding';
 
       if (isSplash) {
         return isAuth ? '/home' : '/onboarding';
+      }
+
+      if (isOnboarding) {
+        return null;
       }
 
       if (isLoggingIn) {

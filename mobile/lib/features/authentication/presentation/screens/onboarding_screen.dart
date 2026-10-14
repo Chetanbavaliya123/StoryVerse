@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:storyverse/core/localization/locale_provider.dart';
+import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
+import 'package:storyverse/features/profile/data/user_repository.dart';
 
 import 'onboarding/design_tokens.dart';
 import 'onboarding/ken_burns_background.dart';
@@ -10,10 +15,7 @@ import 'onboarding/onboarding_top_bar.dart';
 import 'onboarding/onboarding_page_content.dart';
 import 'onboarding/animated_page_indicator.dart';
 import 'onboarding/premium_cta_button.dart';
-import 'onboarding/poster_fan_hero.dart';
-import 'onboarding/orbiting_chips_hero.dart';
 
-/// Onboarding page data model.
 class _PageData {
   const _PageData({
     required this.title,
@@ -29,33 +31,31 @@ const _pages = [
   _PageData(
     title: 'Discover infinite worlds',
     subtitle:
-        'Immerse yourself in cinematic storytelling crafted for the modern screen.',
+        'Immerse yourself in cinematic micro-dramas and episodic shorts crafted for your screen.',
     highlightWords: ['infinite', 'worlds'],
   ),
   _PageData(
-    title: 'Engaging visual series',
+    title: 'Choose your language',
     subtitle:
-        'Follow episodic content that keeps you coming back for the next chapter.',
-    highlightWords: ['visual', 'series'],
+        'Select your preferred story language. You can change this anytime from your profile.',
+    highlightWords: ['language'],
   ),
   _PageData(
-    title: 'Watch anywhere, binge your way',
+    title: 'Pick favorite genres',
     subtitle:
-        'Vertical stories, offline downloads and a watchlist that remembers where you stopped.',
-    highlightWords: ['anywhere'],
+        'Pick up to 3 genres to personalize your recommendations and home feed.',
+    highlightWords: ['genres'],
   ),
 ];
 
-/// The existing onboarding screen — now with premium cinematic experience.
-/// Business logic preserved: Skip → /login, Get Started → /login.
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen>
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late final PageController _pageController;
   late final AnimationController _entryController;
@@ -64,7 +64,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   int _currentPage = 0;
   bool _isExiting = false;
 
-  // Network image URL for page 1 (existing asset)
+  String _selectedLanguage = 'en';
+  final Set<String> _selectedGenres = {'romance', 'thriller', 'horror'};
+
+  static const List<Map<String, String>> _languages = [
+    {'code': 'hi', 'name': 'Hindi', 'native': 'हिन्दी'},
+    {'code': 'en', 'name': 'English', 'native': 'English'},
+    {'code': 'gu', 'name': 'Gujarati', 'native': 'ગુજરાતી'},
+    {'code': 'mr', 'name': 'Marathi', 'native': 'मराठी'},
+    {'code': 'bn', 'name': 'Bengali', 'native': 'বাংলা'},
+  ];
+
+  static const List<Map<String, dynamic>> _genres = [
+    {'id': 'romance', 'name': 'Romance', 'icon': Icons.favorite_rounded},
+    {'id': 'horror', 'name': 'Horror', 'icon': Icons.nightlight_round},
+    {'id': 'thriller', 'name': 'Thriller', 'icon': Icons.flash_on_rounded},
+    {'id': 'sci-fi', 'name': 'Sci-Fi', 'icon': Icons.rocket_launch_rounded},
+    {'id': 'comedy', 'name': 'Comedy', 'icon': Icons.sentiment_very_satisfied_rounded},
+    {'id': 'fantasy', 'name': 'Fantasy', 'icon': Icons.auto_awesome_rounded},
+    {'id': 'drama', 'name': 'Drama', 'icon': Icons.theater_comedy_rounded},
+    {'id': 'action', 'name': 'Action', 'icon': Icons.local_fire_department_rounded},
+  ];
+
   static const String _page1ImageUrl =
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBEK1XA36MYrEzmsfpqmWPIezqFAfe0yw2nqrzWEHFOUOIES3muePQ6jqYo9mlnH-5WImT17li-XauhNHgPLcwcGTNndH0iklEF_-ITv4sZWUAYrNwXHV8P3r3C4HXXjqXf7g-EkfmkUq8IiZ3JVyZ013tp7FndF2GS9LhAsCnqt5zqBYghcWRafvQYOjo5yw8a90QU-6yndlWz2YWrkptGavR1XIo-Th0qetAY49pDpqP5LBheBlep5w';
 
@@ -92,12 +113,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       duration: OBTokens.exitDuration,
     );
 
-    // Trigger entry animation
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _entryController.forward();
     });
 
-    // System UI setup: transparent, edge-to-edge
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
@@ -109,27 +128,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Precache the page 1 network image
-    precacheImage(NetworkImage(_page1ImageUrl), context);
-    // Precache poster images
-    for (final path in [
-      'assets/images/stories/story_03.jpg',
-      'assets/images/stories/story_05.jpg',
-      'assets/images/stories/story_08.jpg',
-      'assets/images/stories/story_12.jpg',
-      'assets/images/stories/story_14.jpg',
-    ]) {
-      precacheImage(AssetImage(path), context);
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Pause/resume handled by individual widget isActive flags
-    // We just mark the overall state
-    if (state == AppLifecycleState.paused) {
-      // Widgets will check isActive
-    }
+    precacheImage(const NetworkImage(_page1ImageUrl), context);
   }
 
   @override
@@ -142,17 +141,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.dispose();
   }
 
-  bool get _reduceMotion {
-    return MediaQuery.of(context).disableAnimations;
-  }
+  bool get _reduceMotion => MediaQuery.of(context).disableAnimations;
 
   void _onSkip() {
-    // Smooth animate to last page, then allow Get Started
-    _pageController.animateToPage(
-      _pages.length - 1,
-      duration: const Duration(milliseconds: 500),
-      curve: OBTokens.pageSwipe,
-    );
+    HapticFeedback.lightImpact();
+    _saveAndNavigate();
   }
 
   void _onNext() {
@@ -163,51 +156,36 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         curve: OBTokens.pageSwipe,
       );
     } else {
-      _onGetStarted();
+      _saveAndNavigate();
     }
   }
 
-  void _onGetStarted() {
+  Future<void> _saveAndNavigate() async {
     if (_isExiting) return;
     _isExiting = true;
 
+    // Apply selected language globally
+    ref.read(appLocaleProvider.notifier).setLocale(_selectedLanguage);
+
+    // Persist to user profile doc if logged in
+    try {
+      await ref.read(userRepositoryProvider).updatePreferences({
+        'language': _selectedLanguage,
+        'preferredGenres': _selectedGenres.toList(),
+        'onboardingCompleted': true,
+      });
+    } catch (_) {}
+
+    final isAuth = ref.read(authStateChangesProvider).value != null;
+
     if (_reduceMotion) {
-      context.go('/login');
+      if (mounted) context.go(isAuth ? '/home' : '/login');
       return;
     }
 
-    // Cinematic exit transition
     _exitController.forward().then((_) {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) {
-              // Let GoRouter handle the actual page
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (context.mounted) {
-                  context.go('/login');
-                }
-              });
-              return const SizedBox.shrink();
-            },
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: ScaleTransition(
-                  scale: Tween<double>(begin: 0.95, end: 1.0).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: OBTokens.entryDefault,
-                    ),
-                  ),
-                  child: child,
-                ),
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 400),
-          ),
-        );
+        context.go(isAuth ? '/home' : '/login');
       }
     });
   }
@@ -221,98 +199,55 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         builder: (context, pageOffset, _) {
           final isLastPage = _currentPage >= _pages.length - 1;
 
-          return AnimatedBuilder(
-            animation: _exitController,
-            builder: (context, child) {
-              // Exit animation: scale up + fade to black with red glow
-              if (_exitController.value > 0) {
-                final exitScale = 1.0 + _exitController.value * 0.08;
-                final exitOpacity = 1.0 - _exitController.value;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background
+              AnimatedGradientBackground(
+                pageOffset: pageOffset,
+                isActive: !_isExiting,
+                reduceMotion: _reduceMotion,
+              ),
 
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Red light burst
-                    Container(
-                      color: Color.lerp(
-                        OBTokens.bgDeep,
-                        OBTokens.crimsonStart.withValues(alpha: 0.3),
-                        (_exitController.value * 2).clamp(0.0, 1.0),
-                      ),
-                    ),
-                    Transform.scale(
-                      scale: exitScale,
-                      child: Opacity(
-                        opacity: exitOpacity.clamp(0.0, 1.0),
-                        child: child!,
-                      ),
-                    ),
-                    // Fade to black
-                    IgnorePointer(
-                      child: Container(
-                        color: OBTokens.bgDeep.withValues(
-                          alpha: (_exitController.value * 1.5).clamp(0.0, 1.0),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }
-              return child!;
-            },
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // ─── Layer 1: Animated gradient background ───
-                AnimatedGradientBackground(
-                  pageOffset: pageOffset,
-                  isActive: !_isExiting,
-                  reduceMotion: _reduceMotion,
-                ),
+              // PageView
+              PageView.builder(
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(),
+                onPageChanged: (index) {
+                  setState(() => _currentPage = index);
+                  if (!_reduceMotion) {
+                    HapticFeedback.selectionClick();
+                  }
+                },
+                itemCount: _pages.length,
+                itemBuilder: (context, index) {
+                  return _buildPage(index, pageOffset);
+                },
+              ),
 
-                // ─── Layer 2: PageView with hero content ───
-                PageView.builder(
-                  controller: _pageController,
-                  physics: const BouncingScrollPhysics(),
-                  onPageChanged: (index) {
-                    setState(() => _currentPage = index);
-                    if (!_reduceMotion) {
-                      HapticFeedback.selectionClick();
-                    }
-                  },
-                  itemCount: _pages.length,
-                  itemBuilder: (context, index) {
-                    return _buildPage(index, pageOffset);
-                  },
+              // Top Bar
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: OnboardingTopBar(
+                  showSkip: true,
+                  onSkip: _onSkip,
+                  entryAnimation: _entryController,
                 ),
+              ),
 
-                // ─── Layer 3: Persistent top bar ───
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: OnboardingTopBar(
-                    showSkip: _currentPage == 0, // only show on the first screen
-                    onSkip: _onSkip,
-                    entryAnimation: _entryController,
-                  ),
+              // Bottom Controls
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  top: false,
+                  child: _buildBottomControls(pageOffset, isLastPage),
                 ),
-
-                // ─── Layer 4: Bottom controls ───
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: SafeArea(
-                    top: false,
-                    child: _buildBottomControls(
-                      pageOffset,
-                      isLastPage,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -320,16 +255,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Widget _buildPage(int index, double pageOffset) {
-    // Parallax: difference between page offset and page index
     final parallax = pageOffset - index;
     final isVisible = (pageOffset - index).abs() < 1.0;
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Page-specific hero visual
         if (index == 0) ...[
-          // Page 1: Ken Burns cinematic image + particles
+          // Step 1: Cinematic Intro Hero
           KenBurnsBackground(
             imageUrl: _page1ImageUrl,
             parallaxOffset: parallax,
@@ -338,62 +271,235 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
           ParticlesOverlay(isActive: isVisible && !_isExiting),
         ] else if (index == 1) ...[
-          // Page 2: Poster fan hero + episode chips
+          // Step 2: Language Selection
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.only(
-                top: OBTokens.topBarHeight + OBTokens.spaceLG,
-                bottom: 240,
+                top: OBTokens.topBarHeight + 20,
+                bottom: 230,
+                left: 20,
+                right: 20,
               ),
-              child: Transform.translate(
-                offset: Offset(parallax * -50, 0),
-                child: Stack(
-                  children: [
-                    PosterFanHero(
-                      pageOffset: parallax,
-                      isActive: isVisible && !_isExiting,
-                      reduceMotion: _reduceMotion,
-                    ),
-                    FloatingEpisodeChips(
-                      isVisible: isVisible && _currentPage == 1,
-                      reduceMotion: _reduceMotion,
-                    ),
-                  ],
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: _languages.map((lang) {
+                      final isSelected = _selectedLanguage == lang['code'];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _selectedLanguage = lang['code']!);
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? OBTokens.crimsonStart.withValues(alpha: 0.25)
+                                    : const Color(0x18FFFFFF),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? OBTokens.crimsonStart
+                                      : const Color(0x22FFFFFF),
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: isSelected
+                                        ? OBTokens.crimsonStart
+                                        : Colors.white12,
+                                    child: Text(
+                                      lang['code']!.toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          lang['name']!,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.w500,
+                                          ),
+                                        ),
+                                        Text(
+                                          lang['native']!,
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      color: OBTokens.crimsonStart,
+                                      size: 24,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
           ),
         ] else if (index == 2) ...[
-          // Page 3: Orbiting chips phone mockup
+          // Step 3: Genre Selection (up to 3)
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.only(
-                top: OBTokens.topBarHeight + OBTokens.spaceLG,
-                bottom: 240,
+                top: OBTokens.topBarHeight + 20,
+                bottom: 230,
+                left: 16,
+                right: 16,
               ),
-              child: Transform.translate(
-                offset: Offset(parallax * -50, 0),
-                child: OrbitingChipsHero(
-                  isActive: isVisible && !_isExiting,
-                  reduceMotion: _reduceMotion,
+              child: Center(
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 14,
+                  alignment: WrapAlignment.center,
+                  children: _genres.map((g) {
+                    final id = g['id'] as String;
+                    final isSelected = _selectedGenres.contains(id);
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() {
+                            if (isSelected) {
+                              if (_selectedGenres.length > 1) {
+                                _selectedGenres.remove(id);
+                              }
+                            } else {
+                              if (_selectedGenres.length < 3) {
+                                _selectedGenres.add(id);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('You can choose up to 3 genres.'),
+                                    duration: Duration(milliseconds: 1200),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            }
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? OBTokens.crimsonStart.withValues(alpha: 0.35)
+                                : const Color(0x18FFFFFF),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected
+                                  ? OBTokens.crimsonStart
+                                  : const Color(0x24FFFFFF),
+                              width: isSelected ? 1.8 : 1,
+                            ),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: OBTokens.crimsonStart
+                                          .withValues(alpha: 0.35),
+                                      blurRadius: 12,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                g['icon'] as IconData,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.white70,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                g['name'] as String,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.check_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ),
           ),
         ],
 
-        // ─── Bottom text content ───
+        // Bottom Text Description
         Positioned(
-          bottom: 170, // lifted from 140 to give more breathing room
+          bottom: 155,
           left: OBTokens.spaceLG,
           right: OBTokens.spaceLG,
           child: Transform.translate(
-            offset: Offset(parallax * -80, 0), // text parallax faster
+            offset: Offset(parallax * -70, 0),
             child: Opacity(
               opacity: (1.0 - parallax.abs() * 1.5).clamp(0.0, 1.0),
               child: OnboardingPageContent(
                 title: _pages[index].title,
-                subtitle: _pages[index].subtitle,
+                subtitle: index == 2
+                    ? 'Selected ${_selectedGenres.length}/3: ${_selectedGenres.map((g) => g.toUpperCase()).join(', ')}'
+                    : _pages[index].subtitle,
                 highlightWords: _pages[index].highlightWords,
                 isVisible: isVisible && _currentPage == index,
                 reduceMotion: _reduceMotion,
@@ -428,12 +534,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Page indicator
               AnimatedPageIndicator(
                 pageCount: _pages.length,
                 pageOffset: pageOffset,
               ),
-              // CTA button
               PremiumCtaButton(
                 isLastPage: isLastPage,
                 onPressed: _onNext,

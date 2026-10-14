@@ -335,6 +335,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           subtitle: selectedTheme,
                           onTap: () => _showThemeModal(context, profile),
                         ),
+                        _buildListTile(
+                          Icons.tune_rounded,
+                          'Content & Onboarding Preferences',
+                          subtitle: 'Preferred language & story genres',
+                          onTap: () => context.push('/onboarding'),
+                        ),
                       ],
                     ),
                   ),

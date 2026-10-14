@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
@@ -151,6 +152,7 @@ class HomeCategoryTabs extends ConsumerWidget {
 
           return GestureDetector(
             onTap: () {
+              HapticFeedback.selectionClick();
               ref.read(homeActiveTabProvider.notifier).setTab(category);
             },
             child: Container(
@@ -238,42 +240,51 @@ class _HeroCarouselState extends State<HeroCarousel> {
   Widget build(BuildContext context) {
     if (widget.stories.isEmpty) return const SizedBox.shrink();
 
+    final count = widget.stories.length > 5 ? 5 : widget.stories.length;
+
     return Column(
       children: [
         SizedBox(
           height: 400,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() => _currentIndex = index);
-              _startAutoRotation(); // Reset timer on manual swipe
-            },
-            itemCount: widget.stories.length > 5 ? 5 : widget.stories.length,
-            itemBuilder: (context, index) {
-              final story = widget.stories[index];
-              return AnimatedBuilder(
-                animation: _pageController,
-                builder: (context, child) {
-                  double value = 1.0;
-                  if (_pageController.position.haveDimensions) {
-                    value = _pageController.page! - index;
-                    value = (1 - (value.abs() * 0.15)).clamp(0.0, 1.0);
-                  }
-                  return Transform.scale(
-                    scale: value,
-                    child: _HeroCard(story: story),
-                  );
-                },
-              );
-            },
+          child: Listener(
+            onPointerDown: (_) => _timer?.cancel(),
+            onPointerUp: (_) => _startAutoRotation(),
+            onPointerCancel: (_) => _startAutoRotation(),
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() => _currentIndex = index);
+                _startAutoRotation(); // Reset timer on manual swipe
+              },
+              itemCount: count,
+              itemBuilder: (context, index) {
+                final story = widget.stories[index];
+                return AnimatedBuilder(
+                  animation: _pageController,
+                  builder: (context, child) {
+                    double value = 1.0;
+                    if (_pageController.position.haveDimensions) {
+                      value = _pageController.page! - index;
+                      value = (1 - (value.abs() * 0.15)).clamp(0.0, 1.0);
+                    }
+                    return Transform.scale(
+                      scale: value,
+                      child: _HeroCard(story: story),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: List.generate(
-            widget.stories.length > 5 ? 5 : widget.stories.length,
-            (index) => Container(
+            count,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
               margin: const EdgeInsets.symmetric(horizontal: 3),
               width: _currentIndex == index ? 24 : 8,
               height: 8,
