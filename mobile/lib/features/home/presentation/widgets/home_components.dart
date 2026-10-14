@@ -1000,3 +1000,46 @@ class TopRankedSkeleton extends StatelessWidget {
   }
 }
 
+class ContinueWatchingSkeleton extends StatelessWidget {
+  const ContinueWatchingSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Container(
+            width: 160,
+            height: 20,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 170,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: 3,
+            itemBuilder: (context, index) {
+              return Container(
+                width: 220,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF181818),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 28),
+      ],
+    );
+  }
+}

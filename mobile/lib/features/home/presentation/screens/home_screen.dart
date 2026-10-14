@@ -10,6 +10,7 @@ import 'package:storyverse/features/story/presentation/providers/story_provider.
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/section_header.dart';
 import 'package:storyverse/features/home/presentation/widgets/home_components.dart';
+import 'package:storyverse/features/home/presentation/providers/home_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -29,11 +30,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final trendingAsync = ref.watch(trendingStoriesProvider);
-    final historyAsync = ref.watch(continueWatchingProvider);
-    final latestAsync = ref.watch(latestStoriesProvider);
-    final topTenAsync = ref.watch(topTenStoriesProvider);
-
+    final homeFeedAsync = ref.watch(homeFeedProvider);
     final activeTab = ref.watch(homeActiveTabProvider);
 
     return Scaffold(
@@ -55,12 +52,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 backgroundColor: const Color(0xFF1E1E24),
                 onRefresh: () async {
                   HapticFeedback.lightImpact();
+                  ref.invalidate(homeFeedProvider);
                   ref.invalidate(trendingStoriesProvider);
                   ref.invalidate(continueWatchingProvider);
                   ref.invalidate(latestStoriesProvider);
                   ref.invalidate(popularStoriesProvider);
                   ref.invalidate(topTenStoriesProvider);
-                  await Future.delayed(const Duration(milliseconds: 500));
+                  await ref.read(homeFeedProvider.future);
                 },
                 child: SingleChildScrollView(
                   controller: _scrollController,
@@ -70,26 +68,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ), // Bottom nav padding
                   child: activeTab != 'Popular'
                       ? _buildCategoryView(context, activeTab)
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 1. HERO FEATURED CAROUSEL
-                            trendingAsync.when(
-                              data: (stories) {
-                                if (stories.isEmpty) return const SizedBox(height: 100);
-                                return HeroCarousel(stories: stories);
-                              },
-                              loading: () => const HeroCarouselSkeleton(),
-                              error: (_, _) => const SizedBox(height: 100),
-                            ),
+                      : homeFeedAsync.when(
+                          data: (feed) => Column(
+                            key: const ValueKey('home_feed_content'),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 1. HERO FEATURED CAROUSEL
+                              HeroCarousel(
+                                key: const ValueKey('hero_carousel'),
+                                stories: feed.heroStories,
+                              ),
+                              const SizedBox(height: 24),
 
-                            const SizedBox(height: 24),
-
-                            // 2. CONTINUE WATCHING (progress bar + time remaining)
-                            historyAsync.when(
-                              data: (history) {
-                                if (history.isEmpty) return const SizedBox.shrink();
-                                return Column(
+                              // 2. CONTINUE WATCHING (hide ONLY after loading complete if empty)
+                              if (feed.continueWatching.isNotEmpty) ...[
+                                Column(
+                                  key: const ValueKey('continue_watching_section'),
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     SectionHeader(
@@ -105,39 +99,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 16,
                                         ),
-                                        itemCount: history.length > 5
+                                        itemCount: feed.continueWatching.length > 5
                                             ? 5
-                                            : history.length,
+                                            : feed.continueWatching.length,
                                         itemBuilder: (context, index) {
-                                          return _HistoryCard(item: history[index]);
+                                          final item = feed.continueWatching[index];
+                                          return _HistoryCard(
+                                            key: ValueKey('history_${item.story.id}_${item.episode.id}'),
+                                            item: item,
+                                          );
                                         },
                                       ),
                                     ),
                                     const SizedBox(height: 28),
                                   ],
-                                );
-                              },
-                              loading: () => const SizedBox.shrink(),
-                              error: (_, _) => const SizedBox.shrink(),
-                            ),
+                                ),
+                                _BecauseYouWatchedSection(
+                                  key: const ValueKey('because_you_watched_section'),
+                                  lastWatched: feed.continueWatching.first,
+                                ),
+                              ],
 
-                            // 3. BECAUSE YOU WATCHED [Last Story Title] (genre-based recommendations)
-                            historyAsync.when(
-                              data: (history) {
-                                if (history.isEmpty) return const SizedBox.shrink();
-                                final lastWatched = history.first;
-                                return _BecauseYouWatchedSection(lastWatched: lastWatched);
-                              },
-                              loading: () => const SizedBox.shrink(),
-                              error: (_, _) => const SizedBox.shrink(),
-                            ),
-
-                            // 4. TRENDING NOW (Ranked Badges #1-#10)
-                            topTenAsync.when(
-                              data: (stories) {
-                                if (stories.isEmpty) return const SizedBox.shrink();
-                                final top10 = stories.take(10).toList();
-                                return Container(
+                              // 3. TRENDING NOW (Ranked Badges #1-#10)
+                              if (feed.topTen.isNotEmpty)
+                                Container(
+                                  key: const ValueKey('trending_now_section'),
                                   width: double.infinity,
                                   padding: const EdgeInsets.symmetric(vertical: 20),
                                   margin: const EdgeInsets.only(bottom: 28),
@@ -169,10 +155,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
                                           ),
-                                          itemCount: top10.length,
+                                          itemCount: feed.topTen.length,
                                           itemBuilder: (context, index) {
                                             return TopRankedCard(
-                                              story: top10[index],
+                                              story: feed.topTen[index],
                                               rank: index + 1,
                                             );
                                           },
@@ -180,17 +166,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ),
                                     ],
                                   ),
-                                );
-                              },
-                              loading: () => const TopRankedSkeleton(),
-                              error: (_, _) => const SizedBox.shrink(),
-                            ),
+                                ),
 
-                            // 5. NEW ARRIVALS
-                            latestAsync.when(
-                              data: (stories) {
-                                if (stories.isEmpty) return const SizedBox.shrink();
-                                return Column(
+                              // 4. NEW ARRIVALS
+                              if (feed.newArrivals.isNotEmpty)
+                                Column(
+                                  key: const ValueKey('new_arrivals_section'),
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     SectionHeader(
@@ -206,10 +187,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 16,
                                         ),
-                                        itemCount: stories.length,
+                                        itemCount: feed.newArrivals.length,
                                         itemBuilder: (context, index) {
                                           return StoryCard(
-                                            story: stories[index],
+                                            story: feed.newArrivals[index],
                                             width: 140,
                                             height: 200,
                                           );
@@ -218,105 +199,155 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ),
                                     const SizedBox(height: 28),
                                   ],
-                                );
-                              },
-                              loading: () => const StorySectionSkeleton(
+                                ),
+
+                              // 5. BROWSE BY LANGUAGE
+                              const SectionHeader(
+                                key: ValueKey('browse_language_header'),
+                                title: 'Browse by Language',
+                                icon: Icons.language,
+                              ),
+                              SizedBox(
+                                key: const ValueKey('browse_language_list'),
+                                height: 45,
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  children: [
+                                    LanguageChip(
+                                      label: 'Hindi',
+                                      onTap: () =>
+                                          context.push('/discover?language=hindi'),
+                                    ),
+                                    LanguageChip(
+                                      label: 'English',
+                                      onTap: () =>
+                                          context.push('/discover?language=english'),
+                                    ),
+                                    LanguageChip(
+                                      label: 'Gujarati',
+                                      onTap: () =>
+                                          context.push('/discover?language=gujarati'),
+                                    ),
+                                    LanguageChip(
+                                      label: 'Marathi',
+                                      onTap: () =>
+                                          context.push('/discover?language=marathi'),
+                                    ),
+                                    LanguageChip(
+                                      label: 'Bengali',
+                                      onTap: () =>
+                                          context.push('/discover?language=bengali'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // 6. POPULAR GENRES
+                              const SectionHeader(
+                                key: ValueKey('popular_genres_header'),
+                                title: 'Popular Genres',
+                                icon: Icons.category,
+                              ),
+                              SizedBox(
+                                key: const ValueKey('popular_genres_list'),
+                                height: 80,
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  children: [
+                                    GenreCard(
+                                      genre: 'Horror',
+                                      color: const Color(0xFF2A153D),
+                                      onTap: () => context.push('/discover?genre=horror'),
+                                    ),
+                                    GenreCard(
+                                      genre: 'Romance',
+                                      color: const Color(0xFF3D1515),
+                                      onTap: () =>
+                                          context.push('/discover?genre=romance'),
+                                    ),
+                                    GenreCard(
+                                      genre: 'Thriller',
+                                      color: const Color(0xFF15263D),
+                                      onTap: () =>
+                                          context.push('/discover?genre=thriller'),
+                                    ),
+                                    GenreCard(
+                                      genre: 'Comedy',
+                                      color: const Color(0xFF3D2715),
+                                      onTap: () => context.push('/discover?genre=comedy'),
+                                    ),
+                                    GenreCard(
+                                      genre: 'Fantasy',
+                                      color: const Color(0xFF153D2A),
+                                      onTap: () =>
+                                          context.push('/discover?genre=fantasy'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+
+                              // 7. AI HUB PROMOTIONAL CARD
+                              const AiHubCtaCard(key: ValueKey('ai_hub_cta')),
+                              const SizedBox(height: 40),
+                            ],
+                          ),
+                          loading: () => Column(
+                            key: const ValueKey('home_feed_skeleton'),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              HeroCarouselSkeleton(key: ValueKey('hero_skeleton')),
+                              SizedBox(height: 24),
+                              ContinueWatchingSkeleton(key: ValueKey('continue_watching_skeleton')),
+                              TopRankedSkeleton(key: ValueKey('trending_skeleton')),
+                              StorySectionSkeleton(
+                                key: ValueKey('new_arrivals_skeleton'),
                                 title: 'New Arrivals',
                                 height: 200,
                                 cardWidth: 140,
                               ),
-                              error: (_, _) => const SizedBox.shrink(),
-                            ),
-
-                            // 6. BROWSE BY LANGUAGE
-                            const SectionHeader(
-                              title: 'Browse by Language',
-                              icon: Icons.language,
-                            ),
-                            SizedBox(
-                              height: 45,
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                              SectionHeader(
+                                key: ValueKey('browse_language_skeleton_header'),
+                                title: 'Browse by Language',
+                                icon: Icons.language,
+                              ),
+                              SizedBox(height: 45),
+                              SizedBox(height: 28),
+                              SectionHeader(
+                                key: ValueKey('popular_genres_skeleton_header'),
+                                title: 'Popular Genres',
+                                icon: Icons.category,
+                              ),
+                              SizedBox(height: 80),
+                              SizedBox(height: 28),
+                              AiHubCtaCard(key: ValueKey('ai_hub_cta_skeleton')),
+                              SizedBox(height: 40),
+                            ],
+                          ),
+                          error: (err, _) => Center(
+                            key: const ValueKey('home_feed_error'),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Column(
                                 children: [
-                                  LanguageChip(
-                                    label: 'Hindi',
-                                    onTap: () =>
-                                        context.push('/discover?language=hindi'),
+                                  const Icon(Icons.refresh, color: Colors.white54, size: 36),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Unable to load feed',
+                                    style: TextStyle(color: Colors.white70),
                                   ),
-                                  LanguageChip(
-                                    label: 'English',
-                                    onTap: () =>
-                                        context.push('/discover?language=english'),
-                                  ),
-                                  LanguageChip(
-                                    label: 'Gujarati',
-                                    onTap: () =>
-                                        context.push('/discover?language=gujarati'),
-                                  ),
-                                  LanguageChip(
-                                    label: 'Marathi',
-                                    onTap: () =>
-                                        context.push('/discover?language=marathi'),
-                                  ),
-                                  LanguageChip(
-                                    label: 'Bengali',
-                                    onTap: () =>
-                                        context.push('/discover?language=bengali'),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    onPressed: () => ref.invalidate(homeFeedProvider),
+                                    child: const Text('Retry'),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 28),
-
-                            // 7. POPULAR GENRES
-                            const SectionHeader(
-                              title: 'Popular Genres',
-                              icon: Icons.category,
-                            ),
-                            SizedBox(
-                              height: 80,
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                children: [
-                                  GenreCard(
-                                    genre: 'Horror',
-                                    color: const Color(0xFF2A153D),
-                                    onTap: () => context.push('/discover?genre=horror'),
-                                  ),
-                                  GenreCard(
-                                    genre: 'Romance',
-                                    color: const Color(0xFF3D1515),
-                                    onTap: () =>
-                                        context.push('/discover?genre=romance'),
-                                  ),
-                                  GenreCard(
-                                    genre: 'Thriller',
-                                    color: const Color(0xFF15263D),
-                                    onTap: () =>
-                                        context.push('/discover?genre=thriller'),
-                                  ),
-                                  GenreCard(
-                                    genre: 'Comedy',
-                                    color: const Color(0xFF3D2715),
-                                    onTap: () => context.push('/discover?genre=comedy'),
-                                  ),
-                                  GenreCard(
-                                    genre: 'Fantasy',
-                                    color: const Color(0xFF153D2A),
-                                    onTap: () =>
-                                        context.push('/discover?genre=fantasy'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-
-                            // 8. AI HUB PROMOTIONAL CARD
-                            const AiHubCtaCard(),
-                            const SizedBox(height: 40),
-                          ],
+                          ),
                         ),
                 ),
               ),
@@ -431,7 +462,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 class _HistoryCard extends StatelessWidget {
   final ContinueWatchingItem item;
 
-  const _HistoryCard({required this.item});
+  const _HistoryCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
@@ -539,7 +570,7 @@ class _HistoryCard extends StatelessWidget {
 
 class _BecauseYouWatchedSection extends ConsumerWidget {
   final ContinueWatchingItem lastWatched;
-  const _BecauseYouWatchedSection({required this.lastWatched});
+  const _BecauseYouWatchedSection({super.key, required this.lastWatched});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
