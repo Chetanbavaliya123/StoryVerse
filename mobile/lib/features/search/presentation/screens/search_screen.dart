@@ -6,6 +6,7 @@ import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/empty_state.dart';
 import 'package:storyverse/core/widgets/skeleton_loader.dart';
+import 'package:storyverse/features/search/presentation/widgets/voice_search_dialog.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -17,6 +18,19 @@ class SearchScreen extends ConsumerStatefulWidget {
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   late TextEditingController _controller;
   final FocusNode _focusNode = FocusNode();
+
+  final List<String> _popularCategories = const [
+    'Romance',
+    'Horror',
+    'Comedy',
+    'Sci-Fi',
+    'Action',
+    'Hindi',
+    'English',
+    'Gujarati',
+    'Bengali',
+    'Marathi',
+  ];
 
   @override
   void initState() {
@@ -31,10 +45,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     super.dispose();
   }
 
+  void _onSelectQuery(String query) {
+    _controller.text = query;
+    _controller.selection = TextSelection.fromPosition(
+      TextPosition(offset: query.length),
+    );
+    ref.read(searchQueryProvider.notifier).setImmediate(query);
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
     final resultsAsync = ref.watch(searchStoriesProvider);
+    final recentSearches = ref.watch(recentSearchesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
@@ -107,8 +130,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     Icons.search,
                     color: AppColors.secondaryText,
                   ),
-                  suffixIcon: query.isNotEmpty
-                      ? IconButton(
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (query.isNotEmpty)
+                        IconButton(
                           icon: const Icon(
                             Icons.clear,
                             color: AppColors.secondaryText,
@@ -117,8 +143,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             _controller.clear();
                             ref.read(searchQueryProvider.notifier).clear();
                           },
-                        )
-                      : null,
+                        ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.mic_rounded,
+                          color: AppColors.primaryAccent,
+                        ),
+                        tooltip: 'Voice Search',
+                        onPressed: () => VoiceSearchDialog.show(context),
+                      ),
+                    ],
+                  ),
                   filled: true,
                   fillColor: AppColors.primarySurface,
                   border: OutlineInputBorder(
@@ -140,20 +175,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
                 onChanged: (value) =>
                     ref.read(searchQueryProvider.notifier).update(value),
+                onSubmitted: (value) =>
+                    ref.read(searchQueryProvider.notifier).setImmediate(value),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Expanded(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: query.isEmpty
-                  ? const EmptyState(
-                      key: ValueKey('empty_initial'),
-                      icon: Icons.search_rounded,
-                      title: 'Find Your Next Story',
-                      message: 'Search by title, genre, author, or keywords.',
-                    )
+                  ? _buildEmptyStateView(recentSearches)
                   : resultsAsync.when(
                       data: (stories) {
                         if (stories.isEmpty) {
@@ -181,10 +213,92 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
+  Widget _buildEmptyStateView(List<String> recentSearches) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      children: [
+        if (recentSearches.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Recent Searches',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    ref.read(recentSearchesProvider.notifier).clearAll(),
+                child: const Text(
+                  'Clear All',
+                  style: TextStyle(color: AppColors.mutedText, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: recentSearches.map((term) {
+              return InputChip(
+                backgroundColor: AppColors.primarySurface,
+                side: const BorderSide(color: AppColors.border),
+                label: Text(
+                  term,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+                onPressed: () => _onSelectQuery(term),
+                onDeleted: () =>
+                    ref.read(recentSearchesProvider.notifier).remove(term),
+                deleteIconColor: AppColors.secondaryText,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+        ],
+
+        const Text(
+          'Popular Categories & Languages',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _popularCategories.map((cat) {
+            return ActionChip(
+              backgroundColor: AppColors.primarySurface,
+              side: BorderSide(
+                color: AppColors.primaryAccent.withValues(alpha: 0.35),
+              ),
+              label: Text(
+                cat,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+              onPressed: () => _onSelectQuery(cat),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
   Widget _buildResultsGrid(List<StoryModel> stories) {
     return GridView.builder(
       key: const ValueKey('results_grid'),
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 100),
+      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 120),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 0.7,

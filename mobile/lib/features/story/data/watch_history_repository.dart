@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:storyverse/core/models/watch_history_model.dart';
@@ -53,7 +54,7 @@ class WatchHistoryRepository {
             'lastWatchedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
     } catch (e) {
-      print('Failed to update watch progress: $e');
+      debugPrint('Failed to update watch progress: $e');
     }
   }
 
@@ -79,7 +80,7 @@ class WatchHistoryRepository {
         return WatchHistoryModel.fromFirestore(doc);
       }
     } catch (e) {
-      print('Failed to get episode progress: $e');
+      debugPrint('Failed to get episode progress: $e');
     }
     return null;
   }
@@ -105,7 +106,7 @@ class WatchHistoryRepository {
           .take(10)
           .toList();
     } catch (e) {
-      print('Failed to get continue watching: $e');
+      debugPrint('Failed to get continue watching: $e');
       return [];
     }
   }
@@ -129,7 +130,7 @@ class WatchHistoryRepository {
           .map((doc) => WatchHistoryModel.fromFirestore(doc))
           .toList();
     } catch (e) {
-      print('Failed to get watch history: $e');
+      debugPrint('Failed to get watch history: $e');
       return [];
     }
   }
@@ -152,7 +153,7 @@ class WatchHistoryRepository {
       }
       await batch.commit();
     } catch (e) {
-      print('Failed to clear history: $e');
+      debugPrint('Failed to clear history: $e');
     }
   }
 }

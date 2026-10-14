@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'core/theme/app_theme.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:storyverse/core/localization/app_localizations.dart';
+import 'package:storyverse/core/localization/locale_provider.dart';
+import 'package:storyverse/core/theme/theme_provider.dart';
 import 'firebase_options.dart';
 import 'package:storyverse/core/routing/app_router.dart';
 import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
@@ -34,16 +37,16 @@ class RootApp extends ConsumerStatefulWidget {
 class _RootAppState extends ConsumerState<RootApp> {
   @override
   Widget build(BuildContext context) {
-    return Directionality(
+    return const Directionality(
       textDirection: TextDirection.ltr,
       child: Stack(
         children: [
           // Underlying app mounts immediately with the splash screen
           // preventing lag spikes caused by dynamic mounting later.
-          const StoryVerseApp(),
+          StoryVerseApp(),
 
           // Splash Overlay coordinates the animation and waits for data
-          const BrandSplash(),
+          BrandSplash(),
         ],
       ),
     );
@@ -56,11 +59,21 @@ class StoryVerseApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final goRouter = ref.watch(goRouterProvider);
+    final currentTheme = ref.watch(appThemeProvider);
+    final currentLocale = ref.watch(appLocaleProvider);
 
     return MaterialApp.router(
       title: 'StoryVerse',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: currentTheme,
+      locale: currentLocale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       routerConfig: goRouter,
     );
   }

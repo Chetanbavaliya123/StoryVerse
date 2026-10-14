@@ -33,9 +33,9 @@ service cloud.firestore {
       // Users can update their own profile, but cannot escalate their role to admin
       allow update: if (request.auth != null && request.auth.uid == userId && request.resource.data.role == resource.data.role) || isAdmin();
       
-      allow delete: if isAdmin();
+      allow delete: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       
-      // Watch history, favorites, and library subcollections
+      // Watch history, favorites, library, and notifications subcollections
       match /watchHistory/{historyId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
@@ -43,6 +43,9 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       match /library/{libraryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /notifications/{notificationId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }

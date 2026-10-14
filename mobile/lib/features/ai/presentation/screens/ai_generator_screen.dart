@@ -128,7 +128,7 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
   Widget build(BuildContext context) {
     final body = PopScope(
       canPop: _generatedStory == null && !_isGenerating,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_generatedStory != null) {
           setState(() {

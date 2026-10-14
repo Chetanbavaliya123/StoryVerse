@@ -38,9 +38,6 @@ final GlobalKey<NavigatorState> _shortsNavigatorKey = GlobalKey<NavigatorState>(
 final GlobalKey<NavigatorState> _premiumNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'premium',
 );
-final GlobalKey<NavigatorState> _searchNavigatorKey = GlobalKey<NavigatorState>(
-  debugLabel: 'search',
-);
 final GlobalKey<NavigatorState> _libraryNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'library');
 final GlobalKey<NavigatorState> _profileNavigatorKey =

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -28,22 +29,17 @@ class AuthRepository {
 
     final user = userCredential.user;
     if (user != null) {
-      print('AUTH LOGIN SUCCESS\nuid: ${user.uid}\nemail: ${user.email}');
+      debugPrint('AUTH LOGIN SUCCESS: ${user.uid} (${user.email})');
       final userRef = _firestore.collection('users').doc(user.uid);
-      print(
-        'UPDATING LOGIN TIMESTAMP\ncollection: users\ndocument: ${user.uid}\nfield: lastLoginAt',
-      );
       try {
         await userRef.set({
           'uid': user.uid,
           'email': user.email,
           'lastLoginAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        print('LOGIN TIMESTAMP UPDATE SUCCESS\nuid: ${user.uid}');
+        debugPrint('LOGIN TIMESTAMP UPDATE SUCCESS: ${user.uid}');
       } catch (e, stackTrace) {
-        print(
-          'LOGIN TIMESTAMP UPDATE FAILED\nuid: ${user.uid}\nerror: $e\nstackTrace: $stackTrace',
-        );
+        debugPrint('LOGIN TIMESTAMP UPDATE FAILED: $e\n$stackTrace');
       }
     }
 
@@ -61,10 +57,7 @@ class AuthRepository {
     final user = userCredential.user;
 
     if (user != null) {
-      print('AUTH LOGIN SUCCESS\nuid: ${user.uid}\nemail: ${user.email}');
-      print(
-        'UPDATING LOGIN TIMESTAMP\ncollection: users\ndocument: ${user.uid}\nfield: lastLoginAt',
-      );
+      debugPrint('AUTH CREATED USER: ${user.uid}');
       try {
         await _firestore.collection('users').doc(user.uid).set({
           'uid': user.uid,
@@ -73,11 +66,9 @@ class AuthRepository {
           'lastLoginAt': FieldValue.serverTimestamp(),
           'role': 'user',
         }, SetOptions(merge: true));
-        print('LOGIN TIMESTAMP UPDATE SUCCESS\nuid: ${user.uid}');
+        debugPrint('USER PROFILE CREATION SUCCESS: ${user.uid}');
       } catch (e, stackTrace) {
-        print(
-          'LOGIN TIMESTAMP UPDATE FAILED\nuid: ${user.uid}\nerror: $e\nstackTrace: $stackTrace',
-        );
+        debugPrint('USER PROFILE CREATION FAILED: $e\n$stackTrace');
       }
     }
 
@@ -89,44 +80,30 @@ class AuthRepository {
   }
 
   Future<UserCredential?> signInWithGoogle() async {
-    print('DIAGNOSTIC: signInWithGoogle started');
+    debugPrint('DIAGNOSTIC: signInWithGoogle started');
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
         clientId:
             '754804931190-ljpu7qrtp34tavg14vf9th1057sm34ps.apps.googleusercontent.com',
       );
-      print('DIAGNOSTIC: Calling googleSignIn.signIn()...');
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      print(
-        'DIAGNOSTIC: googleSignIn.signIn() completed. User: ${googleUser?.email}',
-      );
 
       if (googleUser != null) {
-        print('DIAGNOSTIC: Fetching authentication tokens...');
         final GoogleSignInAuthentication googleAuth =
             await googleUser.authentication;
-        print('DIAGNOSTIC: Tokens fetched successfully.');
 
         final AuthCredential credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
 
-        print('DIAGNOSTIC: Calling _auth.signInWithCredential...');
         final userCredential = await _auth.signInWithCredential(credential);
         final user = userCredential.user;
-        print('DIAGNOSTIC: Firebase Auth succeeded. UID: ${user?.uid}');
 
         if (user != null) {
-          print('AUTH LOGIN SUCCESS\nuid: ${user.uid}\nemail: ${user.email}');
           final userRef = _firestore.collection('users').doc(user.uid);
-          print(
-            'UPDATING LOGIN TIMESTAMP\ncollection: users\ndocument: ${user.uid}\nfield: lastLoginAt',
-          );
           try {
-            print('DIAGNOSTIC: Fetching Firestore profile...');
             final docSnapshot = await userRef.get();
-            print('DIAGNOSTIC: Profile exists: ${docSnapshot.exists}');
             if (!docSnapshot.exists) {
               await userRef.set({
                 'uid': user.uid,
@@ -137,31 +114,83 @@ class AuthRepository {
                 'lastLoginAt': FieldValue.serverTimestamp(),
                 'role': 'user',
               });
-              print('DIAGNOSTIC: Profile created with role=user');
+              debugPrint('Profile created with role=user');
             } else {
               await userRef.set({
                 'lastLoginAt': FieldValue.serverTimestamp(),
               }, SetOptions(merge: true));
-              print('DIAGNOSTIC: Profile lastLoginAt updated securely');
             }
-            print('LOGIN TIMESTAMP UPDATE SUCCESS\nuid: ${user.uid}');
           } catch (e, stackTrace) {
-            print(
-              'LOGIN TIMESTAMP UPDATE FAILED\nuid: ${user.uid}\nerror: $e\nstackTrace: $stackTrace',
-            );
+            debugPrint('Error updating Google user profile: $e\n$stackTrace');
           }
         }
         return userCredential;
       }
-      print('DIAGNOSTIC: googleUser is null (user cancelled sign-in)');
       return null;
     } catch (e, stack) {
-      print('DIAGNOSTIC: Error caught in signInWithGoogle!');
-      print('DIAGNOSTIC: Error type: ${e.runtimeType}');
-      print('DIAGNOSTIC: Error details: $e');
-      print('DIAGNOSTIC: Stack trace: $stack');
+      debugPrint('Error caught in signInWithGoogle: $e\n$stack');
       rethrow;
     }
+  }
+
+  Future<void> deleteAccount({String? password}) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No user is currently signed in.');
+    }
+
+    final uid = user.uid;
+
+    // 1. Re-authenticate if password is provided
+    if (password != null && user.email != null) {
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: password,
+      );
+      await user.reauthenticateWithCredential(credential);
+    }
+
+    // 2. Cascade delete subcollections: watchHistory, favorites, library, notifications
+    final subcollections = [
+      'watchHistory',
+      'favorites',
+      'library',
+      'notifications',
+    ];
+    for (final subcol in subcollections) {
+      try {
+        final snap = await _firestore
+            .collection('users')
+            .doc(uid)
+            .collection(subcol)
+            .get();
+        final batch = _firestore.batch();
+        for (final doc in snap.docs) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      } catch (e) {
+        debugPrint('[AUTH] Error deleting subcollection $subcol for $uid: $e');
+      }
+    }
+
+    // 3. Delete user profile document
+    try {
+      await _firestore.collection('users').doc(uid).delete();
+    } catch (e) {
+      debugPrint('[AUTH] Error deleting user document $uid: $e');
+    }
+
+    // 4. Delete user account from Firebase Authentication
+    await user.delete();
+
+    // 5. Sign out GoogleSignIn session if active
+    try {
+      final googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.signOut();
+      }
+    } catch (_) {}
   }
 
   Future<void> signOut() async {

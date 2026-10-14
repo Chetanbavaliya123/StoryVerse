@@ -275,16 +275,20 @@ class _AiResultScreenState extends ConsumerState<AiResultScreen> {
                                       _isSaving = false;
                                       _isSaved = true;
                                     });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Saved to your Library!')),
-                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Saved to your Library!')),
+                                      );
+                                    }
                                   }
                                 } catch (e) {
                                   if (mounted) {
                                     setState(() => _isSaving = false);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Failed to save. Try again.')),
-                                    );
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Failed to save. Try again.')),
+                                      );
+                                    }
                                   }
                                 }
                               },

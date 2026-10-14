@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
+import 'package:storyverse/core/widgets/empty_state.dart';
 import 'package:storyverse/core/models/notification_model.dart';
 import 'package:storyverse/features/notifications/data/notification_repository.dart';
 
@@ -81,134 +82,11 @@ class NotificationsScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState() {
-    // For demo purposes, if no notifications exist in firestore, we show a static list to ensure the screen looks complete
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildDemoNotificationItem(
-          title: 'New Episode Available!',
-          message: 'Episode 4 of "The Clever Fox" is now streaming.',
-          timeAgo: '2 hours ago',
-          icon: Icons.play_circle_filled,
-          color: Colors.blue,
-          isRead: false,
-        ),
-        _buildDemoNotificationItem(
-          title: 'Story Recommended for You',
-          message:
-              'Because you watched "The Lion and the Mouse", you might like "The Golden Egg".',
-          timeAgo: '1 day ago',
-          icon: Icons.auto_awesome,
-          color: Colors.amber,
-          isRead: true,
-        ),
-        _buildDemoNotificationItem(
-          title: 'Subscription Expiring',
-          message:
-              'Your StoryVerse Pro subscription expires in 3 days. Renew now to avoid interruption.',
-          timeAgo: '2 days ago',
-          icon: Icons.warning_amber_rounded,
-          color: Colors.orange,
-          isRead: true,
-        ),
-        _buildDemoNotificationItem(
-          title: 'System Update',
-          message:
-              'Welcome to StoryVerse v2.0! Check out our new AI Hub features.',
-          timeAgo: '1 week ago',
-          icon: Icons.system_update,
-          color: AppColors.primaryAccent,
-          isRead: true,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDemoNotificationItem({
-    required String title,
-    required String message,
-    required String timeAgo,
-    required IconData icon,
-    required Color color,
-    required bool isRead,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isRead
-            ? AppColors.primarySurface
-            : AppColors.primarySurface.withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isRead
-              ? AppColors.border
-              : AppColors.primaryAccent.withValues(alpha: 0.5),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: isRead
-                              ? FontWeight.w600
-                              : FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    if (!isRead)
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primaryAccent,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: TextStyle(
-                    color: isRead ? AppColors.secondaryText : Colors.white70,
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  timeAgo,
-                  style: const TextStyle(
-                    color: AppColors.mutedText,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+    return const Center(
+      child: EmptyState(
+        icon: Icons.notifications_off_outlined,
+        title: 'No Notifications Yet',
+        message: 'When new episodes, series releases, or recommendations are available, you will see them here.',
       ),
     );
   }

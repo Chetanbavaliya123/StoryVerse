@@ -7,12 +7,31 @@ import 'package:storyverse/core/models/story_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:storyverse/features/library/data/library_repository.dart';
+import 'package:storyverse/features/notifications/data/notification_repository.dart';
+import 'package:storyverse/features/search/presentation/widgets/voice_search_dialog.dart';
 
-class HomeHeader extends StatelessWidget {
+class HomeActiveTabNotifier extends Notifier<String> {
+  @override
+  String build() => 'Popular';
+
+  void setTab(String tab) {
+    state = tab;
+  }
+}
+
+final homeActiveTabProvider =
+    NotifierProvider<HomeActiveTabNotifier, String>(() {
+  return HomeActiveTabNotifier();
+});
+
+class HomeHeader extends ConsumerWidget {
   const HomeHeader({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount =
+        ref.watch(unreadNotificationCountProvider).value ?? 0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
       child: Row(
@@ -37,28 +56,65 @@ class HomeHeader extends StatelessWidget {
                       style: TextStyle(color: Colors.white54, fontSize: 14),
                     ),
                     const Spacer(),
-                    const Icon(Icons.mic, color: Colors.white70, size: 20),
+                    GestureDetector(
+                      onTap: () => VoiceSearchDialog.show(context),
+                      child: const Icon(
+                        Icons.mic_rounded,
+                        color: AppColors.primaryAccent,
+                        size: 22,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           GestureDetector(
             onTap: () => context.push('/notifications'),
-            child: const Icon(
-              Icons.notifications_none,
-              color: Colors.white,
-              size: 28,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(
+                  Icons.notifications_none_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                if (unreadCount > 0)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primaryAccent,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        unreadCount > 9 ? '9+' : '$unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           GestureDetector(
             onTap: () => context.push('/profile'),
             child: const CircleAvatar(
-              radius: 16,
+              radius: 17,
               backgroundColor: AppColors.primaryAccent,
-              child: Icon(Icons.person, color: Colors.white, size: 20),
+              child: Icon(Icons.person_rounded, color: Colors.white, size: 20),
             ),
           ),
         ],
@@ -67,16 +123,10 @@ class HomeHeader extends StatelessWidget {
   }
 }
 
-class HomeCategoryTabs extends StatefulWidget {
+class HomeCategoryTabs extends ConsumerWidget {
   const HomeCategoryTabs({super.key});
 
-  @override
-  State<HomeCategoryTabs> createState() => _HomeCategoryTabsState();
-}
-
-class _HomeCategoryTabsState extends State<HomeCategoryTabs> {
-  int _selectedIndex = 0;
-  final List<String> categories = [
+  static const List<String> categories = [
     'Popular',
     'Trending',
     'New',
@@ -86,55 +136,50 @@ class _HomeCategoryTabsState extends State<HomeCategoryTabs> {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeTab = ref.watch(homeActiveTabProvider);
+
     return SizedBox(
-      height: 48,
+      height: 46,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: categories.length,
         itemBuilder: (context, index) {
-          final isSelected = _selectedIndex == index;
+          final category = categories[index];
+          final isSelected = activeTab == category;
+
           return GestureDetector(
             onTap: () {
-              setState(() => _selectedIndex = index);
-              final String route;
-              if (categories[index] == 'Popular') {
-                route = '/discover?category=popular';
-              } else if (categories[index] == 'Trending') {
-                route = '/discover?category=trending';
-              } else if (categories[index] == 'New') {
-                route = '/discover?category=new';
-              } else {
-                route = '/discover?genre=${categories[index].toLowerCase()}';
-              }
-              context.push(route);
+              ref.read(homeActiveTabProvider.notifier).setTab(category);
             },
             child: Container(
-              margin: const EdgeInsets.only(right: 24),
+              margin: const EdgeInsets.only(right: 22),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    categories[index],
+                    category,
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.white54,
                       fontSize: 15,
                       fontWeight: isSelected
                           ? FontWeight.bold
-                          : FontWeight.normal,
+                          : FontWeight.w500,
                     ),
                   ),
-                  if (isSelected)
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      height: 3,
-                      width: 20,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryAccent,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+                  const SizedBox(height: 4),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 3,
+                    width: isSelected ? 22 : 0,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primaryAccent
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(2),
                     ),
+                  ),
                 ],
               ),
             ),

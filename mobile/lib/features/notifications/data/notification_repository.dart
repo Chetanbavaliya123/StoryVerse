@@ -10,6 +10,10 @@ final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
   );
 });
 
+final unreadNotificationCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(notificationRepositoryProvider).streamUnreadCount();
+});
+
 class NotificationRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;

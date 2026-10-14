@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/core/models/episode_model.dart';
@@ -37,7 +38,7 @@ class StoryRepository {
           return stories.take(limit).toList();
         })
         .handleError((error) {
-          print('Firebase Stream Error: $error');
+          debugPrint('Firebase Stream Error: $error');
           return getDemoStories(); // Fallback on network/permission error
         });
   }
@@ -156,7 +157,7 @@ class StoryRepository {
           return episodes;
         })
         .handleError((error) {
-          print('Firebase Stream Error (Episodes): $error');
+          debugPrint('Firebase Stream Error (Episodes): $error');
           return demoEpisodesCatalog[storyId] ?? []; // Fallback
         });
   }

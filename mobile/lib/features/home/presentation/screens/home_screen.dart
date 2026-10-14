@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
 import 'package:storyverse/core/models/continue_watching_item.dart';
+import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/section_header.dart';
@@ -33,6 +34,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final popularAsync = ref.watch(popularStoriesProvider);
     final topTenAsync = ref.watch(topTenStoriesProvider);
 
+    final activeTab = ref.watch(homeActiveTabProvider);
+
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
       body: SafeArea(
@@ -52,20 +55,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 padding: const EdgeInsets.only(
                   bottom: 120,
                 ), // Bottom nav padding
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. HERO FEATURED CAROUSEL (Now safely below header)
-                    trendingAsync.when(
-                      data: (stories) {
-                        if (stories.isEmpty) return const SizedBox(height: 100);
-                        return HeroCarousel(stories: stories);
-                      },
-                      loading: () => const HeroCarouselSkeleton(),
-                      error: (_, _) => const SizedBox(height: 100),
-                    ),
+                child: activeTab != 'Popular'
+                    ? _buildCategoryView(context, activeTab)
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. HERO FEATURED CAROUSEL (Now safely below header)
+                          trendingAsync.when(
+                            data: (stories) {
+                              if (stories.isEmpty) return const SizedBox(height: 100);
+                              return HeroCarousel(stories: stories);
+                            },
+                            loading: () => const HeroCarouselSkeleton(),
+                            error: (_, _) => const SizedBox(height: 100),
+                          ),
 
-                    const SizedBox(height: 28),
+                          const SizedBox(height: 28),
 
                     // 2. TRENDING NOW
                     trendingAsync.when(
@@ -235,6 +240,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             onTap: () =>
                                 context.push('/discover?language=marathi'),
                           ),
+                          LanguageChip(
+                            label: 'Bengali',
+                            onTap: () =>
+                                context.push('/discover?language=bengali'),
+                          ),
                         ],
                       ),
                     ),
@@ -402,6 +412,106 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryView(BuildContext context, String tab) {
+    AsyncValue<List<StoryModel>> storiesAsync;
+    if (tab == 'Trending') {
+      storiesAsync = ref.watch(trendingStoriesProvider);
+    } else if (tab == 'New') {
+      storiesAsync = ref.watch(latestStoriesProvider);
+    } else {
+      storiesAsync = ref.watch(
+        storiesByMultiFilterProvider({'genre': tab.toLowerCase()}),
+      );
+    }
+
+    return storiesAsync.when(
+      data: (stories) {
+        if (stories.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 48),
+            child: Center(
+              child: Column(
+                children: [
+                  const Icon(
+                    Icons.movie_filter_outlined,
+                    size: 48,
+                    color: AppColors.mutedText,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No $tab stories yet',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () =>
+                        ref.read(homeActiveTabProvider.notifier).setTab('Popular'),
+                    child: const Text('Back to All Stories'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HeroCarousel(stories: stories.take(5).toList()),
+            const SizedBox(height: 24),
+            SectionHeader(
+              title: '$tab Stories',
+              icon: Icons.auto_awesome,
+              actionLabel: 'See All',
+              onAction: () {
+                final route = (tab == 'Trending')
+                    ? '/discover?category=trending'
+                    : (tab == 'New')
+                        ? '/discover?category=new'
+                        : '/discover?genre=${tab.toLowerCase()}';
+                context.push(route);
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.7,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                ),
+                itemCount: stories.length,
+                itemBuilder: (context, index) {
+                  return StoryCard(
+                    story: stories[index],
+                    width: double.infinity,
+                    height: double.infinity,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const Column(
+        children: [
+          HeroCarouselSkeleton(),
+          SizedBox(height: 24),
+          StoryGridSkeleton(title: 'Loading...'),
+        ],
+      ),
+      error: (e, _) => Center(
+        child: Text(
+          'Error loading stories: $e',
+          style: const TextStyle(color: Colors.white),
         ),
       ),
     );

@@ -5,6 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/models/user_model.dart';
+import 'package:storyverse/core/localization/locale_provider.dart';
+import 'package:storyverse/core/theme/theme_provider.dart';
+import 'package:storyverse/features/authentication/data/auth_repository.dart';
 import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
 import 'package:storyverse/features/profile/data/user_repository.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
@@ -397,6 +400,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           subtitle: 'Sign out of this device',
                           isDestructive: true,
                           onTap: () => _confirmLogout(context),
+                        ),
+                        _buildListTile(
+                          Icons.delete_forever_rounded,
+                          'Delete Account',
+                          subtitle: 'Permanently remove your account and all data',
+                          isDestructive: true,
+                          onTap: () => _confirmDeleteAccount(context),
                         ),
                       ],
                     ),
@@ -1010,7 +1020,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Your viewing history and personal preferences are privately encrypted and isolated to your account.',
+                        'Your viewing history and personal preferences are stored securely and isolated to your private account.',
                         style: TextStyle(color: AppColors.secondaryText, fontSize: 12),
                       ),
                     ),
@@ -1256,6 +1266,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           ref
                               .read(userRepositoryProvider)
                               .updateSinglePreference('language', lang['code']);
+                          ref
+                              .read(appLocaleProvider.notifier)
+                              .setLocale(lang['code']!);
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -1376,6 +1389,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       ref
                           .read(userRepositoryProvider)
                           .updateSinglePreference('theme', theme['name']);
+                      ref
+                          .read(appThemeProvider.notifier)
+                          .setTheme(theme['name'] as String);
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -1735,6 +1751,216 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ),
         ],
       ),
+    );
+  }
+
+  void _confirmDeleteAccount(BuildContext context) {
+    final authUser = FirebaseAuth.instance.currentUser;
+    final isPasswordUser =
+        authUser?.providerData.any((p) => p.providerId == 'password') ?? false;
+    final passwordController = TextEditingController();
+    bool isDeleting = false;
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.secondaryBackground,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.redAccent,
+                    size: 28,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Delete Account',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Are you sure you want to permanently delete your account? This action is irreversible and complies with Google Play Store data safety standards.\n\nAll your data will be immediately and permanently removed:',
+                      style: TextStyle(
+                        color: AppColors.secondaryText,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('• Personal profile and avatar',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const Text('• Complete watch history and playback progress',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const Text('• Favorites and saved library stories',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const Text('• Generated AI stories and custom scripts',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const Text('• Notifications and active session credentials',
+                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    if (isPasswordUser) ...[
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Enter your password to verify:',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: true,
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 14),
+                        decoration: InputDecoration(
+                          hintText: 'Current Password',
+                          hintStyle: const TextStyle(color: AppColors.mutedText),
+                          filled: true,
+                          fillColor: AppColors.primarySurface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        errorMessage!,
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDeleting ? null : () => Navigator.pop(dialogCtx),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white70)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red.shade900,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: isDeleting
+                      ? null
+                      : () async {
+                          if (isPasswordUser &&
+                              passwordController.text.trim().isEmpty) {
+                            setDialogState(() {
+                              errorMessage =
+                                  'Password is required to confirm deletion.';
+                            });
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isDeleting = true;
+                            errorMessage = null;
+                          });
+
+                          try {
+                            await ref
+                                .read(authRepositoryProvider)
+                                .deleteAccount(
+                                  password: isPasswordUser
+                                      ? passwordController.text.trim()
+                                      : null,
+                                );
+
+                            ref.invalidate(continueWatchingProvider);
+                            ref.invalidate(watchHistoryStoriesProvider);
+                            ref.invalidate(favoriteStoriesProvider);
+                            ref.invalidate(libraryStoriesProvider);
+                            ref.invalidate(savedStoriesProvider);
+                            ref.invalidate(aiStoriesProvider);
+
+                            if (dialogCtx.mounted) {
+                              Navigator.pop(dialogCtx);
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Your account and data have been permanently deleted.',
+                                  ),
+                                  backgroundColor: AppColors.primarySurface,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              context.go('/onboarding');
+                            }
+                          } on FirebaseAuthException catch (e) {
+                            setDialogState(() {
+                              isDeleting = false;
+                              if (e.code == 'wrong-password') {
+                                errorMessage =
+                                    'Incorrect password. Please verify and try again.';
+                              } else if (e.code == 'requires-recent-login') {
+                                errorMessage =
+                                    'Please log out and log back in before deleting your account for security verification.';
+                              } else {
+                                errorMessage =
+                                    e.message ?? 'Failed to delete account.';
+                              }
+                            });
+                          } catch (e) {
+                            setDialogState(() {
+                              isDeleting = false;
+                              errorMessage = 'Error: $e';
+                            });
+                          }
+                        },
+                  child: isDeleting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Permanently Delete',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
