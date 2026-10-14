@@ -11,9 +11,6 @@ import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/utils/video_url_helper.dart';
 import 'package:storyverse/features/story/data/story_repository.dart';
 import 'package:storyverse/features/story/data/watch_history_repository.dart';
-import 'package:storyverse/features/profile/data/user_repository.dart';
-import 'package:storyverse/features/premium/presentation/providers/unlocked_episodes_provider.dart';
-import 'package:storyverse/features/premium/presentation/widgets/paywall_bottom_sheet.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/vertical_video_view.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/episode_player_controls.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/episode_selector_sheet.dart';
@@ -111,28 +108,6 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     if (_episodes.isEmpty) return;
 
     final episode = _episodes[_currentIndex];
-
-    // Check paywall gating before initializing player
-    final isPremium = ref.read(isPremiumUserProvider);
-    final unlockedEps = ref.read(unlockedEpisodesProvider);
-    final isLocked = episode.episodeNumber > 3 && !isPremium && !unlockedEps.contains(episode.id);
-
-    if (isLocked) {
-      _cancelCountdown();
-      if (mounted) {
-        PaywallBottomSheet.show(
-          context: context,
-          story: _story,
-          episode: episode,
-          onUnlocked: () {
-            if (mounted) {
-              _initializeCurrentEpisode();
-            }
-          },
-        );
-      }
-      return;
-    }
 
     _cancelCountdown();
     _progressSaveTimer?.cancel();
@@ -236,22 +211,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       if (!_isAutoAdvancing && !_isCountdownActive) {
         _saveProgress(markCompleted: true);
         if (_currentIndex < _episodes.length - 1) {
-          final nextEp = _episodes[_currentIndex + 1];
-          final isPremium = ref.read(isPremiumUserProvider);
-          final unlockedEps = ref.read(unlockedEpisodesProvider);
-          final isLocked = nextEp.episodeNumber > 3 && !isPremium && !unlockedEps.contains(nextEp.id);
-
-          if (isLocked) {
-            _controller?.pause();
-            PaywallBottomSheet.show(
-              context: context,
-              story: _story,
-              episode: nextEp,
-              onUnlocked: () {
-                _goToEpisodeIndex(_currentIndex + 1);
-              },
-            );
-          } else if (_isAutoplayEnabled) {
+          if (_isAutoplayEnabled) {
             _startAutoplayCountdown();
           }
         } else {
@@ -424,28 +384,6 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   void _goToEpisodeIndex(int index) {
     if (index < 0 || index >= _episodes.length) return;
     _cancelCountdown();
-
-    final targetEp = _episodes[index];
-    final isPremium = ref.read(isPremiumUserProvider);
-    final unlockedEps = ref.read(unlockedEpisodesProvider);
-    final isLocked = targetEp.episodeNumber > 3 && !isPremium && !unlockedEps.contains(targetEp.id);
-
-    if (isLocked) {
-      _controller?.pause();
-      PaywallBottomSheet.show(
-        context: context,
-        story: _story,
-        episode: targetEp,
-        onUnlocked: () {
-          _pageController?.animateToPage(
-            index,
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.easeInOutCubic,
-          );
-        },
-      );
-      return;
-    }
 
     _pageController?.animateToPage(
       index,

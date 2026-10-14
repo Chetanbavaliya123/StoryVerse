@@ -6,8 +6,7 @@ import 'package:storyverse/features/ai/data/ai_repository.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:storyverse/core/models/ai_generation_model.dart';
-import 'package:storyverse/features/ai/presentation/providers/ai_quota_provider.dart';
-import 'package:storyverse/features/premium/presentation/widgets/paywall_bottom_sheet.dart';
+
 
 class AiGeneratorScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
@@ -65,17 +64,6 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
 
     if (_isGenerating) return;
 
-    final quota = ref.read(aiQuotaProvider);
-    if (!quota.canGenerate) {
-      PaywallBottomSheet.show(
-        context: context,
-        onUnlocked: () {
-          _generate();
-        },
-      );
-      return;
-    }
-
     FocusScope.of(context).unfocus(); // Close keyboard
 
     debugPrint('[AI] SEND pressed');
@@ -98,8 +86,6 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
             genre: _selectedGenre,
             language: _selectedLanguage,
           );
-
-      await ref.read(aiQuotaProvider.notifier).consumeQuota();
 
       if (mounted) {
         setState(() {
@@ -221,8 +207,6 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
   }
 
   Widget _buildWelcomeState() {
-    final quota = ref.watch(aiQuotaProvider);
-
     return Center(
       key: const ValueKey('welcome'),
       child: SingleChildScrollView(
@@ -262,81 +246,8 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            _buildQuotaBadge(quota),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildQuotaBadge(AiQuotaState quota) {
-    if (quota.isUnlimitedVip) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFB800).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFFFB800).withValues(alpha: 0.4)),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.workspace_premium_rounded, color: Color(0xFFFFB800), size: 16),
-            SizedBox(width: 6),
-            Text(
-              'VIP Member • Unlimited AI Stories',
-              style: TextStyle(
-                color: Color(0xFFFFB800),
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.primarySurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            quota.remainingToday > 0 ? Icons.bolt_rounded : Icons.lock_clock_rounded,
-            color: quota.remainingToday > 0 ? AppColors.primaryAccent : const Color(0xFFFFB800),
-            size: 16,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '${quota.remainingToday} of ${quota.maxFreeDaily} free stories left today',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () {
-              PaywallBottomSheet.show(context: context);
-            },
-            child: const Text(
-              'Upgrade',
-              style: TextStyle(
-                color: AppColors.primaryAccent,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

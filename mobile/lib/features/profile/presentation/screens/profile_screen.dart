@@ -84,8 +84,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
     final selectedTheme = (profile?.preferences['theme'] as String?) ?? 'OLED Pure Black';
 
-    final isPremium = ref.watch(isPremiumUserProvider);
-
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
       body: SafeArea(
@@ -207,74 +205,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  GestureDetector(
-                    onTap: () {
-                      if (isPremium) {
-                        context.push('/premium');
-                      } else {
-                        _showPremiumWaitlistModal(context, profile);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primarySurface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isPremium
-                              ? Colors.amber.withValues(alpha: 0.5)
-                              : AppColors.primaryAccent.withValues(alpha: 0.4),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isPremium
-                                    ? Colors.amber
-                                    : AppColors.primaryAccent)
-                                .withValues(alpha: 0.15),
-                            blurRadius: 10,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            isPremium
-                                ? Icons.workspace_premium_rounded
-                                : Icons.star_border_rounded,
-                            color: isPremium
-                                ? Colors.amber
-                                : AppColors.primaryAccent,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            isPremium
-                                ? 'Premium Member'
-                                : 'Free Plan • Join VIP Waitlist',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            color: isPremium
-                                ? Colors.amber
-                                : AppColors.primaryAccent,
-                            size: 16,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -293,12 +223,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           'Personal Information',
                           subtitle: 'Edit name & profile photo',
                           onTap: () => _showEditProfileModal(context, profile, authUser),
-                        ),
-                        _buildListTile(
-                          Icons.payment_outlined,
-                          'Subscription & Billing',
-                          subtitle: 'Plans, features & payment details',
-                          onTap: () => context.push('/premium'),
                         ),
                         _buildListTile(
                           Icons.security_outlined,
@@ -431,148 +355,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   // --- ACTIONS & MODAL SHEETS ---
-
-  void _showPremiumWaitlistModal(BuildContext context, UserModel? profile) {
-    final isOnWaitlist =
-        (profile?.preferences['notifyPremium'] as bool?) ?? false;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (modalCtx, setModalState) {
-            bool localOnWaitlist = isOnWaitlist;
-            return Container(
-              padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: AppColors.secondaryBackground,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.workspace_premium_rounded,
-                          color: Color(0xFFFFD700),
-                          size: 26,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'StoryVerse VIP Access',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Early Access Waitlist',
-                            style: TextStyle(
-                              color: AppColors.secondaryText,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'In-app billing is rolling out soon. Join our early VIP waitlist to unlock unlimited offline episodes, ad-free streaming, 4K master playback, and priority AI generation.',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13.5,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: localOnWaitlist
-                            ? Colors.green.shade800
-                            : AppColors.primaryAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      icon: Icon(
-                        localOnWaitlist
-                            ? Icons.check_circle_rounded
-                            : Icons.notifications_active_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      label: Text(
-                        localOnWaitlist
-                            ? "You're on the Waitlist!"
-                            : 'Notify Me at Launch',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      onPressed: localOnWaitlist
-                          ? null
-                          : () async {
-                              await ref
-                                  .read(userRepositoryProvider)
-                                  .updateSinglePreference(
-                                      'notifyPremium', true);
-                              setModalState(() {
-                                localOnWaitlist = true;
-                              });
-                              if (context.mounted) {
-                                Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "You're registered! We'll notify you when VIP opens.",
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   void _showEditProfileModal(
     BuildContext context,

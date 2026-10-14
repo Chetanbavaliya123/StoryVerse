@@ -4,9 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
 import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
-import 'package:storyverse/features/profile/data/user_repository.dart';
-import 'package:storyverse/features/premium/presentation/providers/unlocked_episodes_provider.dart';
-import 'package:storyverse/features/premium/presentation/widgets/paywall_bottom_sheet.dart';
+
 
 class EpisodesScreen extends ConsumerWidget {
   final String storyId;
@@ -102,25 +100,8 @@ class EpisodesScreen extends ConsumerWidget {
             itemCount: episodes.length,
             itemBuilder: (context, index) {
               final ep = episodes[index];
-              final isPremium = ref.watch(isPremiumUserProvider);
-              final unlockedEps = ref.watch(unlockedEpisodesProvider);
-              final isLocked = ep.episodeNumber > 3 &&
-                  !isPremium &&
-                  !unlockedEps.contains(ep.id);
-
               return InkWell(
-                onTap: () {
-                  if (isLocked) {
-                    PaywallBottomSheet.show(
-                      context: context,
-                      story: storyAsync.value,
-                      episode: ep,
-                      onUnlocked: () => context.push('/player/$storyId/${ep.id}'),
-                    );
-                  } else {
-                    context.push('/player/$storyId/${ep.id}');
-                  }
-                },
+                onTap: () => context.push('/player/$storyId/${ep.id}'),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -148,46 +129,15 @@ class EpisodesScreen extends ConsumerWidget {
                             Positioned.fill(
                               child: Container(
                                 color: Colors.black38,
-                                child: Center(
+                                child: const Center(
                                   child: Icon(
-                                    isLocked
-                                        ? Icons.lock_rounded
-                                        : Icons.play_circle_fill,
-                                    color: isLocked
-                                        ? const Color(0xFFFFB800)
-                                        : Colors.white,
+                                    Icons.play_circle_fill,
+                                    color: Colors.white,
                                     size: 30,
                                   ),
                                 ),
                               ),
                             ),
-                            if (isLocked)
-                              Positioned(
-                                top: 5,
-                                left: 5,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black87,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                      color: const Color(0xFFFFB800),
-                                      width: 0.8,
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'VIP',
-                                    style: TextStyle(
-                                      color: Color(0xFFFFB800),
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
                       ),

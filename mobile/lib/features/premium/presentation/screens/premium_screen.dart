@@ -1,495 +1,205 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
-import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
-import 'package:storyverse/core/widgets/story_card.dart';
-import 'package:storyverse/core/widgets/skeleton_loader.dart';
-import 'package:storyverse/core/models/story_model.dart';
-import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
 
-class PremiumScreen extends ConsumerWidget {
+class PremiumScreen extends StatelessWidget {
   const PremiumScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final popularAsync = ref.watch(popularStoriesProvider);
-    final trendingAsync = ref.watch(trendingStoriesProvider);
-    final latestAsync = ref.watch(latestStoriesProvider);
-
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
       body: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            // Premium Header
-            SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 24),
+              // Glowing Icon Badge
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.35),
+                      blurRadius: 28,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.workspace_premium_rounded,
+                    size: 48,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFFFFD700).withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Text(
+                  'COMING SOON',
+                  style: TextStyle(
+                    color: Color(0xFFFFD700),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Title
+              const Text(
+                'StoryVerse Premium',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              // Subtitle
+              const Text(
+                'An elevated entertainment experience is currently in development. Enjoy all current stories, episodes, and AI features completely free.',
+                style: TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 14,
+                  height: 1.55,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              // Upcoming Features Cards
+              _buildFeatureCard(
+                icon: Icons.high_quality_rounded,
+                title: '4K HDR Streaming',
+                description: 'Ultra high-definition video mastering with immersive theater sound.',
+              ),
+              const SizedBox(height: 12),
+              _buildFeatureCard(
+                icon: Icons.download_done_rounded,
+                title: 'Offline Video Downloads',
+                description: 'Save any full series directly to your device for on-the-go offline bingeing.',
+              ),
+              const SizedBox(height: 12),
+              _buildFeatureCard(
+                icon: Icons.block_flipped,
+                title: '100% Ad-Free Experience',
+                description: 'Zero interruptions between shorts, chapters, and episode cliffhangers.',
+              ),
+              const SizedBox(height: 12),
+              _buildFeatureCard(
+                icon: Icons.auto_awesome_rounded,
+                title: 'Priority AI Generations',
+                description: 'Unlimited instant story drafting with our most powerful generative AI models.',
+              ),
+              const SizedBox(height: 28),
+              // Informational Note Container
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Row(
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(
-                            Icons.diamond_outlined,
-                            color: Colors.black,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'STORYVERSE',
-                              style: TextStyle(
-                                fontSize: 10,
-                                letterSpacing: 2.0,
-                                color: AppColors.secondaryText,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Premium',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    Icon(
+                      Icons.info_outline_rounded,
+                      color: AppColors.primaryAccent,
+                      size: 20,
                     ),
-                    const SizedBox(height: 20),
-
-                    // Premium CTA Banner
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF3D1C11), Color(0xFF1A0E08)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: const Color(0xFFFFD700).withValues(alpha: 0.2),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'All features across the app are currently 100% free while we prepare our premium tier launch.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12.5,
+                          height: 1.4,
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Color(0xFFFFD700),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Unlock All Stories',
-                                style: TextStyle(
-                                  color: Color(0xFFFFD700),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Get unlimited access to all premium stories, exclusive originals, and ad-free experience.',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              height: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                              ),
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: const Text(
-                              'Coming Soon',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                    const SizedBox(height: 28),
                   ],
                 ),
               ),
-            ),
-
-            // Premium Originals Section
-            SliverToBoxAdapter(
-              child: _PremiumSection(
-                title: 'Premium Originals',
-                icon: Icons.workspace_premium,
-                gradientColors: const [
-                  Color(0xFF2B1504),
-                  Color(0xFF141414),
-                  Colors.black,
-                ],
-                child: trendingAsync.when(
-                  data: (stories) {
-                    if (stories.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'No premium originals available yet.',
-                          style: TextStyle(
-                            color: AppColors.secondaryText,
-                            fontSize: 14,
-                          ),
-                        ),
-                      );
-                    }
-                    return SizedBox(
-                      height: 225,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: stories.length,
-                        itemBuilder: (context, index) {
-                          return StoryCard(
-                            story: stories[index],
-                            width: 140,
-                            height: 215,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  loading: () => _buildHorizontalSkeleton(),
-                  error: (_, _) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
-
-            // Exclusive Collection
-            SliverToBoxAdapter(
-              child: _PremiumSection(
-                title: 'Exclusive Collection',
-                icon: Icons.collections_bookmark,
-                gradientColors: const [
-                  Color(0xFF0A1828),
-                  Color(0xFF101418),
-                  Colors.black,
-                ],
-                child: popularAsync.when(
-                  data: (stories) {
-                    if (stories.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'No exclusive stories available yet.',
-                          style: TextStyle(
-                            color: AppColors.secondaryText,
-                            fontSize: 14,
-                          ),
-                        ),
-                      );
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GridView.builder(
-                        padding: EdgeInsets.zero,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              childAspectRatio: 0.58,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 14,
-                            ),
-                        itemCount: stories.length > 6 ? 6 : stories.length,
-                        itemBuilder: (context, index) {
-                          final story = stories[index];
-                          return _PremiumGridCard(story: story);
-                        },
-                      ),
-                    );
-                  },
-                  loading: () => _buildGridSkeleton(),
-                  error: (_, _) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
-
-            // Top Picks
-            SliverToBoxAdapter(
-              child: _PremiumSection(
-                title: 'Top Picks For You',
-                icon: Icons.auto_awesome,
-                gradientColors: const [
-                  Color(0xFF1C0A28),
-                  Color(0xFF141418),
-                  Colors.black,
-                ],
-                child: latestAsync.when(
-                  data: (stories) {
-                    if (stories.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'No recommendations available yet.',
-                          style: TextStyle(
-                            color: AppColors.secondaryText,
-                            fontSize: 14,
-                          ),
-                        ),
-                      );
-                    }
-                    return SizedBox(
-                      height: 225,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: stories.length,
-                        itemBuilder: (context, index) {
-                          return StoryCard(
-                            story: stories[index],
-                            width: 135,
-                            height: 215,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  loading: () => _buildHorizontalSkeleton(),
-                  error: (_, _) => const SizedBox.shrink(),
-                ),
-              ),
-            ),
-
-            // Bottom padding for nav bar
-            const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
-          ],
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHorizontalSkeleton() {
-    return SizedBox(
-      height: 200,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: 3,
-        itemBuilder: (context, index) => const Padding(
-          padding: EdgeInsets.only(right: 16),
-          child: SkeletonLoader(width: 130, height: 200, borderRadius: 12),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGridSkeleton() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 0.65,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 16,
-        ),
-        itemCount: 6,
-        itemBuilder: (context, index) => const SkeletonLoader(
-          width: double.infinity,
-          height: double.infinity,
-          borderRadius: 8,
-        ),
-      ),
-    );
-  }
-}
-
-class _PremiumSection extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Color> gradientColors;
-  final Widget child;
-
-  const _PremiumSection({
-    required this.title,
-    required this.icon,
-    required this.gradientColors,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  static Widget _buildFeatureCard({
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      margin: const EdgeInsets.only(bottom: 8),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: const [0.0, 0.5, 1.0],
-        ),
+        color: AppColors.primarySurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD700).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFFFFD700), size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: const Color(0xFFFFD700), size: 20),
-                const SizedBox(width: 10),
                 Text(
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: AppColors.secondaryText,
+                    fontSize: 12.5,
+                    height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          child,
         ],
-      ),
-    );
-  }
-}
-
-class _PremiumGridCard extends StatelessWidget {
-  final StoryModel story;
-
-  const _PremiumGridCard({required this.story});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/story/${story.id}'),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF181818),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFFFD700).withValues(alpha: 0.1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(11),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    NetworkImageWithFallback(
-                      imageUrl: story.thumbnailUrl,
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD700),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Icon(
-                          Icons.star,
-                          color: Colors.black,
-                          size: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 6.0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    story.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${story.genreId.toUpperCase()} • ${story.language}',
-                    style: const TextStyle(
-                      color: AppColors.secondaryText,
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

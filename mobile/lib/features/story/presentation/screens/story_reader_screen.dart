@@ -11,9 +11,7 @@ import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/design_system/app_bottom_sheet.dart';
 import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
 import 'package:storyverse/features/story/data/watch_history_repository.dart';
-import 'package:storyverse/features/profile/data/user_repository.dart';
-import 'package:storyverse/features/premium/presentation/providers/unlocked_episodes_provider.dart';
-import 'package:storyverse/features/premium/presentation/widgets/paywall_bottom_sheet.dart';
+
 
 enum ReaderThemeMode {
   dark,
@@ -455,8 +453,6 @@ class _StoryReaderScreenState extends ConsumerState<StoryReaderScreen> {
 
   void _openChaptersSheet(StoryModel story, List<EpisodeModel> episodes) {
     HapticFeedback.lightImpact();
-    final isPremium = ref.read(isPremiumUserProvider);
-    final unlockedEps = ref.read(unlockedEpisodesProvider);
 
     AppBottomSheet.show(
       context: context,
@@ -475,7 +471,6 @@ class _StoryReaderScreenState extends ConsumerState<StoryReaderScreen> {
           }
 
           final ep = episodes[index];
-          final isLocked = ep.episodeNumber > 3 && !isPremium && !unlockedEps.contains(ep.id);
           final isCurrent = index == _currentChapterIndex;
 
           return ListTile(
@@ -483,13 +478,11 @@ class _StoryReaderScreenState extends ConsumerState<StoryReaderScreen> {
             leading: CircleAvatar(
               backgroundColor: isCurrent
                   ? AppColors.primaryAccent
-                  : (isLocked ? const Color(0xFF2C2515) : const Color(0xFF22222A)),
+                  : const Color(0xFF22222A),
               child: Icon(
-                isLocked
-                    ? Icons.lock_rounded
-                    : (isCurrent ? Icons.menu_book_rounded : Icons.check_circle_outline),
+                isCurrent ? Icons.menu_book_rounded : Icons.check_circle_outline,
                 size: 18,
-                color: isLocked ? const Color(0xFFFFB800) : Colors.white,
+                color: Colors.white,
               ),
             ),
             title: Text(
@@ -501,46 +494,18 @@ class _StoryReaderScreenState extends ConsumerState<StoryReaderScreen> {
               ),
             ),
             subtitle: Text(
-              isLocked ? 'VIP or Ad to Unlock' : (ep.duration > 0 ? '${(ep.duration / 60).ceil()} min read' : 'Available'),
-              style: TextStyle(
-                color: isLocked ? const Color(0xFFFFB800) : Colors.white60,
+              ep.duration > 0 ? '${(ep.duration / 60).ceil()} min read' : 'Available',
+              style: const TextStyle(
+                color: Colors.white60,
                 fontSize: 12,
               ),
             ),
-            trailing: isLocked
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFB800).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFFFB800)),
-                    ),
-                    child: const Text(
-                      'LOCKED',
-                      style: TextStyle(
-                        color: Color(0xFFFFB800),
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                : (isCurrent
-                    ? const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.primaryAccent, size: 14)
-                    : null),
+            trailing: isCurrent
+                ? const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.primaryAccent, size: 14)
+                : null,
             onTap: () {
               Navigator.of(context).pop();
-              if (isLocked) {
-                PaywallBottomSheet.show(
-                  context: context,
-                  story: story,
-                  episode: ep,
-                  onUnlocked: () {
-                    _loadChapter(index);
-                  },
-                );
-              } else {
-                _loadChapter(index);
-              }
+              _loadChapter(index);
             },
           );
         },
@@ -563,23 +528,7 @@ class _StoryReaderScreenState extends ConsumerState<StoryReaderScreen> {
 
   void _goToNextChapter(StoryModel story, List<EpisodeModel> episodes) {
     if (_currentChapterIndex < episodes.length - 1) {
-      final nextEp = episodes[_currentChapterIndex + 1];
-      final isPremium = ref.read(isPremiumUserProvider);
-      final unlockedEps = ref.read(unlockedEpisodesProvider);
-      final isLocked = nextEp.episodeNumber > 3 && !isPremium && !unlockedEps.contains(nextEp.id);
-
-      if (isLocked) {
-        PaywallBottomSheet.show(
-          context: context,
-          story: story,
-          episode: nextEp,
-          onUnlocked: () {
-            _loadChapter(_currentChapterIndex + 1);
-          },
-        );
-      } else {
-        _loadChapter(_currentChapterIndex + 1);
-      }
+      _loadChapter(_currentChapterIndex + 1);
     }
   }
 
