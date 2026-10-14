@@ -86,42 +86,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: AppColors.primaryBackground,
-              elevation: 0,
-              title: const Text(
-                'Profile',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              centerTitle: false,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.tune_rounded, color: Colors.white),
-                  tooltip: 'Quick Preferences',
-                  onPressed: () => _showPreferencesSheet(context, profile),
-                ),
-              ],
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 120),
-                child: Column(
-                  children: [
-                    // Header / Avatar Area
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.only(top: 24, bottom: 32),
-                      decoration: BoxDecoration(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: Colors.white),
+            tooltip: 'Quick Preferences',
+            onPressed: () => _showPreferencesSheet(context, profile),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 120),
+        child: Column(
+          children: [
+            // Header / Avatar Area
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 100, bottom: 32),
+              decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
@@ -341,17 +326,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       ],
                     ),
                   ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
+      ),
+    );
   }
 
   // --- ACTIONS & MODAL SHEETS ---
