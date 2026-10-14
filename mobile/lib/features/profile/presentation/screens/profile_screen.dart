@@ -60,7 +60,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    final authUser = ref.watch(authStateChangesProvider).value ?? FirebaseAuth.instance.currentUser;
+    User? authUser;
+    try {
+      authUser = ref.watch(authStateChangesProvider).value ??
+          FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      authUser = null;
+    }
     final profileAsync = ref.watch(currentUserProfileProvider);
     final profile = profileAsync.value;
 
