@@ -16,11 +16,13 @@ class EpisodePlayerControls extends StatelessWidget {
   final bool isInitialized;
   final bool showTapFeedback;
   final bool isPlayingFeedback;
+  final bool isAutoplayEnabled;
   final VoidCallback onTapVideo;
   final VoidCallback onToggleMute;
   final VoidCallback onBack;
   final ValueChanged<Duration> onSeek;
   final VoidCallback? onOpenEpisodesSheet;
+  final VoidCallback? onToggleAutoplay;
 
   const EpisodePlayerControls({
     super.key,
@@ -32,11 +34,13 @@ class EpisodePlayerControls extends StatelessWidget {
     this.isInitialized = true,
     this.showTapFeedback = false,
     this.isPlayingFeedback = false,
+    this.isAutoplayEnabled = true,
     required this.onTapVideo,
     required this.onToggleMute,
     required this.onBack,
     required this.onSeek,
     this.onOpenEpisodesSheet,
+    this.onToggleAutoplay,
   });
 
   @override
@@ -252,6 +256,62 @@ class EpisodePlayerControls extends StatelessWidget {
                                   Icons.video_library_rounded,
                                   color: Colors.white,
                                   size: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+
+                      // Autoplay Toggle Button
+                      if (onToggleAutoplay != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: GestureDetector(
+                              onTap: onToggleAutoplay,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isAutoplayEnabled
+                                      ? DesignTokens.primaryAccent
+                                          .withValues(alpha: 0.3)
+                                      : Colors.black.withValues(alpha: 0.45),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: isAutoplayEnabled
+                                        ? DesignTokens.primaryAccent
+                                            .withValues(alpha: 0.8)
+                                        : Colors.white.withValues(alpha: 0.18),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.autorenew_rounded,
+                                      color: isAutoplayEnabled
+                                          ? Colors.white
+                                          : Colors.white60,
+                                      size: 15,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'AUTO',
+                                      style: TextStyle(
+                                        color: isAutoplayEnabled
+                                            ? Colors.white
+                                            : Colors.white60,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),

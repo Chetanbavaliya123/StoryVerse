@@ -350,7 +350,56 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                       Row(
                         children: [
                           if (story.categoryId == 'ai-generated')
-                            const Spacer(),
+                            Expanded(
+                              child: Container(
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF8E2DE2),
+                                      Color(0xFF4A00E0),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF8E2DE2).withValues(alpha: 0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    context.push('/reader/${widget.storyId}');
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.menu_book_rounded, size: 24, color: Colors.white),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Read Novel / Story',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           if (story.categoryId != 'ai-generated') ...[
                             Expanded(
                               child: Container(
@@ -452,6 +501,28 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                           ),
                         ],
                       ),
+                      if (story.categoryId != 'ai-generated') ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            context.push('/reader/${widget.storyId}');
+                          },
+                          icon: const Icon(Icons.menu_book_rounded, size: 20),
+                          label: const Text(
+                            'Read Novel / Script Mode',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            backgroundColor: Colors.white.withValues(alpha: 0.05),
+                          ),
+                        ),
+                      ],
                       if (story.categoryId != 'ai-generated') ...[
                         const SizedBox(height: 24),
                         // Episodes section

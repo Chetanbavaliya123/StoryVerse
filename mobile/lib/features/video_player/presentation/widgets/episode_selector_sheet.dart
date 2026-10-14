@@ -1,11 +1,15 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/core/models/episode_model.dart';
 import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/core/theme/design_tokens.dart';
 import 'package:storyverse/core/widgets/network_image_with_fallback.dart';
+import 'package:storyverse/features/profile/data/user_repository.dart';
+import 'package:storyverse/features/premium/presentation/providers/unlocked_episodes_provider.dart';
+import 'package:storyverse/features/premium/presentation/widgets/paywall_bottom_sheet.dart';
 
-class EpisodeSelectorSheet extends StatelessWidget {
+class EpisodeSelectorSheet extends ConsumerWidget {
   final StoryModel story;
   final List<EpisodeModel> episodes;
   final int currentIndex;
@@ -40,7 +44,7 @@ class EpisodeSelectorSheet extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: BackdropFilter(
@@ -117,11 +121,23 @@ class EpisodeSelectorSheet extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final ep = episodes[index];
                     final isCurrent = index == currentIndex;
+                    final isPremium = ref.watch(isPremiumUserProvider);
+                    final unlockedEps = ref.watch(unlockedEpisodesProvider);
+                    final isLocked = ep.episodeNumber > 3 &&
+                        !isPremium &&
+                        !unlockedEps.contains(ep.id);
 
                     return GestureDetector(
                       onTap: () {
                         Navigator.of(context).pop();
-                        if (!isCurrent) {
+                        if (isLocked) {
+                          PaywallBottomSheet.show(
+                            context: context,
+                            story: story,
+                            episode: ep,
+                            onUnlocked: () => onSelectEpisode(index),
+                          );
+                        } else if (!isCurrent) {
                           onSelectEpisode(index);
                         }
                       },
@@ -167,6 +183,22 @@ class EpisodeSelectorSheet extends StatelessWidget {
                                       Icons.equalizer_rounded,
                                       color: DesignTokens.primaryAccent,
                                       size: 24,
+                                    ),
+                                  )
+                                else if (isLocked)
+                                  Container(
+                                    width: 80,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.55),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.lock_rounded,
+                                        color: Color(0xFFFFB800),
+                                        size: 20,
+                                      ),
                                     ),
                                   ),
                               ],

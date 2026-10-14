@@ -17,6 +17,7 @@ import 'package:storyverse/features/shorts/presentation/screens/shorts_screen.da
 import 'package:storyverse/features/premium/presentation/screens/premium_screen.dart';
 import 'package:storyverse/features/story/presentation/screens/story_details_screen.dart';
 import 'package:storyverse/features/story/presentation/screens/episodes_screen.dart';
+import 'package:storyverse/features/story/presentation/screens/story_reader_screen.dart';
 import 'package:storyverse/features/video_player/presentation/screens/video_player_screen.dart';
 import 'package:storyverse/features/library/presentation/screens/library_screen.dart';
 import 'package:storyverse/features/notifications/presentation/screens/notifications_screen.dart';
@@ -188,6 +189,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
+        path: '/reader/:storyId',
+        name: 'storyReader',
+        pageBuilder: (context, state) {
+          final storyId = state.pathParameters['storyId']!;
+          final chapterIndex = int.tryParse(state.uri.queryParameters['chapter'] ?? '0') ?? 0;
+          return _buildPageWithTransition(
+            context: context,
+            state: state,
+            child: StoryReaderScreen(
+              storyId: storyId,
+              initialChapterIndex: chapterIndex,
+            ),
+            slideUp: true,
+          );
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/search',
         name: 'search',
         builder: (context, state) => const SearchScreen(),
@@ -274,7 +293,20 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/shorts',
                 name: 'shorts',
-                builder: (context, state) => const ShortsScreen(),
+                builder: (context, state) {
+                  final id = state.uri.queryParameters['id'];
+                  return ShortsScreen(initialShortId: id);
+                },
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    name: 'shortById',
+                    builder: (context, state) {
+                      final id = state.pathParameters['id'];
+                      return ShortsScreen(initialShortId: id);
+                    },
+                  ),
+                ],
               ),
             ],
           ),

@@ -7,9 +7,13 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:storyverse/core/models/player_playback_state.dart';
 import 'package:storyverse/core/models/episode_model.dart';
 import 'package:storyverse/core/models/story_model.dart';
+import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/utils/video_url_helper.dart';
 import 'package:storyverse/features/story/data/story_repository.dart';
 import 'package:storyverse/features/story/data/watch_history_repository.dart';
+import 'package:storyverse/features/profile/data/user_repository.dart';
+import 'package:storyverse/features/premium/presentation/providers/unlocked_episodes_provider.dart';
+import 'package:storyverse/features/premium/presentation/widgets/paywall_bottom_sheet.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/vertical_video_view.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/episode_player_controls.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/episode_selector_sheet.dart';
@@ -39,6 +43,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   String _errorMessage = '';
   bool _showControls = false;
   bool _isMuted = false;
+  bool _isAutoplayEnabled = true;
+
+  bool _isCountdownActive = false;
+  int _countdownSeconds = 5;
+  Timer? _countdownTimer;
 
   Timer? _hideControlsTimer;
   Timer? _progressSaveTimer;
@@ -103,6 +112,29 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
     final episode = _episodes[_currentIndex];
 
+    // Check paywall gating before initializing player
+    final isPremium = ref.read(isPremiumUserProvider);
+    final unlockedEps = ref.read(unlockedEpisodesProvider);
+    final isLocked = episode.episodeNumber > 3 && !isPremium && !unlockedEps.contains(episode.id);
+
+    if (isLocked) {
+      _cancelCountdown();
+      if (mounted) {
+        PaywallBottomSheet.show(
+          context: context,
+          story: _story,
+          episode: episode,
+          onUnlocked: () {
+            if (mounted) {
+              _initializeCurrentEpisode();
+            }
+          },
+        );
+      }
+      return;
+    }
+
+    _cancelCountdown();
     _progressSaveTimer?.cancel();
     _hideControlsTimer?.cancel();
     _saveProgress();
@@ -198,15 +230,30 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     final duration = controller.value.duration;
     final position = controller.value.position;
 
-    // Detect natural completion: auto-advance with swipe animation or exit on last episode
+    // Detect natural completion: auto-advance with 5s countdown or exit on last episode
     if (duration > Duration.zero &&
         position >= duration - const Duration(milliseconds: 600)) {
-      if (!_isAutoAdvancing) {
-        _isAutoAdvancing = true;
+      if (!_isAutoAdvancing && !_isCountdownActive) {
         _saveProgress(markCompleted: true);
         if (_currentIndex < _episodes.length - 1) {
-          // Automatically swipe up to next episode with animation
-          _goToEpisodeIndex(_currentIndex + 1);
+          final nextEp = _episodes[_currentIndex + 1];
+          final isPremium = ref.read(isPremiumUserProvider);
+          final unlockedEps = ref.read(unlockedEpisodesProvider);
+          final isLocked = nextEp.episodeNumber > 3 && !isPremium && !unlockedEps.contains(nextEp.id);
+
+          if (isLocked) {
+            _controller?.pause();
+            PaywallBottomSheet.show(
+              context: context,
+              story: _story,
+              episode: nextEp,
+              onUnlocked: () {
+                _goToEpisodeIndex(_currentIndex + 1);
+              },
+            );
+          } else if (_isAutoplayEnabled) {
+            _startAutoplayCountdown();
+          }
         } else {
           // Last episode ended -> return to Story Details ("Watch Now") screen
           if (mounted && Navigator.of(context).canPop()) {
@@ -232,6 +279,50 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         setState(() {});
       }
     }
+  }
+
+  void _startAutoplayCountdown() {
+    _countdownTimer?.cancel();
+    setState(() {
+      _isCountdownActive = true;
+      _countdownSeconds = 5;
+    });
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_countdownSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _isCountdownActive = false;
+        });
+        _goToEpisodeIndex(_currentIndex + 1);
+      } else {
+        setState(() {
+          _countdownSeconds--;
+        });
+      }
+    });
+  }
+
+  void _cancelCountdown() {
+    _countdownTimer?.cancel();
+    if (_isCountdownActive) {
+      setState(() {
+        _isCountdownActive = false;
+        _countdownSeconds = 5;
+      });
+    }
+  }
+
+  void _toggleAutoplay() {
+    setState(() {
+      _isAutoplayEnabled = !_isAutoplayEnabled;
+      if (!_isAutoplayEnabled && _isCountdownActive) {
+        _cancelCountdown();
+      }
+    });
   }
 
   void _startProgressSaveTimer() {
@@ -332,6 +423,30 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
   void _goToEpisodeIndex(int index) {
     if (index < 0 || index >= _episodes.length) return;
+    _cancelCountdown();
+
+    final targetEp = _episodes[index];
+    final isPremium = ref.read(isPremiumUserProvider);
+    final unlockedEps = ref.read(unlockedEpisodesProvider);
+    final isLocked = targetEp.episodeNumber > 3 && !isPremium && !unlockedEps.contains(targetEp.id);
+
+    if (isLocked) {
+      _controller?.pause();
+      PaywallBottomSheet.show(
+        context: context,
+        story: _story,
+        episode: targetEp,
+        onUnlocked: () {
+          _pageController?.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.easeInOutCubic,
+          );
+        },
+      );
+      return;
+    }
+
     _pageController?.animateToPage(
       index,
       duration: const Duration(milliseconds: 450),
@@ -341,6 +456,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
   void _onPageChanged(int index) {
     if (_currentIndex == index) return;
+    _cancelCountdown();
     setState(() {
       _currentIndex = index;
     });
@@ -350,6 +466,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   @override
   void dispose() {
     _saveProgress();
+    _cancelCountdown();
     _hideControlsTimer?.cancel();
     _progressSaveTimer?.cancel();
     _tapFeedbackTimer?.cancel();
@@ -372,6 +489,111 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
       onSelectEpisode: (index) {
         _goToEpisodeIndex(index);
       },
+    );
+  }
+
+  Widget _buildAutoplayCountdownOverlay(EpisodeModel nextEp) {
+    return Positioned(
+      bottom: 120,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xE614141E),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.6),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CircularProgressIndicator(
+                    value: _countdownSeconds / 5.0,
+                    strokeWidth: 3.5,
+                    backgroundColor: Colors.white24,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryAccent),
+                  ),
+                ),
+                Text(
+                  '$_countdownSeconds',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Up Next in 5s',
+                    style: TextStyle(
+                      color: AppColors.primaryAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Ep ${nextEp.episodeNumber}: ${nextEp.title}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: () {
+                _cancelCountdown();
+                _goToEpisodeIndex(_currentIndex + 1);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Play Now',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 6),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+              onPressed: _cancelCountdown,
+              tooltip: 'Cancel Autoplay',
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -433,45 +655,54 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: PageView.builder(
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        itemCount: _episodes.length,
-        onPageChanged: _onPageChanged,
-        itemBuilder: (context, index) {
-          final episode = _episodes[index];
-          final isCurrent = index == _currentIndex;
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            itemCount: _episodes.length,
+            onPageChanged: _onPageChanged,
+            itemBuilder: (context, index) {
+              final episode = _episodes[index];
+              final isCurrent = index == _currentIndex;
 
-          return VerticalVideoView(
-            controller: isCurrent ? _controller : null,
-            thumbnailUrl: episode.thumbnailUrl,
-            isLoading: isCurrent ? isLoading : false,
-            hasError: isCurrent ? hasGenuineError : false,
-            errorMessage: _errorMessage,
-            isCinematicLetterbox: true,
-            onRetry: _initializeCurrentEpisode,
-            overlay: isCurrent
-                ? EpisodePlayerControls(
-                    story: _story!,
-                    episode: episode,
-                    controller: _controller,
-                    showControls: _showControls,
-                    isMuted: _isMuted,
-                    isInitialized: _controller != null && _controller!.value.isInitialized,
-                    showTapFeedback: _showTapFeedback,
-                    isPlayingFeedback: _isPlayingFeedback,
-                    onTapVideo: _onTapVideoScreen,
-                    onToggleMute: _toggleMute,
-                    onBack: () {
-                      _saveProgress();
-                      Navigator.of(context).pop();
-                    },
-                    onSeek: _seekTo,
-                    onOpenEpisodesSheet: _openEpisodeSelector,
-                  )
-                : const SizedBox.shrink(),
-          );
-        },
+              return VerticalVideoView(
+                controller: isCurrent ? _controller : null,
+                thumbnailUrl: episode.thumbnailUrl,
+                isLoading: isCurrent ? isLoading : false,
+                hasError: isCurrent ? hasGenuineError : false,
+                errorMessage: _errorMessage,
+                isCinematicLetterbox: true,
+                onRetry: _initializeCurrentEpisode,
+                overlay: isCurrent
+                    ? EpisodePlayerControls(
+                        story: _story!,
+                        episode: episode,
+                        controller: _controller,
+                        showControls: _showControls,
+                        isMuted: _isMuted,
+                        isAutoplayEnabled: _isAutoplayEnabled,
+                        onToggleAutoplay: _toggleAutoplay,
+                        isInitialized: _controller != null && _controller!.value.isInitialized,
+                        showTapFeedback: _showTapFeedback,
+                        isPlayingFeedback: _isPlayingFeedback,
+                        onTapVideo: _onTapVideoScreen,
+                        onToggleMute: _toggleMute,
+                        onBack: () {
+                          _saveProgress();
+                          Navigator.of(context).pop();
+                        },
+                        onSeek: _seekTo,
+                        onOpenEpisodesSheet: _openEpisodeSelector,
+                      )
+                    : const SizedBox.shrink(),
+              );
+            },
+          ),
+          if (_isCountdownActive && _currentIndex < _episodes.length - 1)
+            _buildAutoplayCountdownOverlay(_episodes[_currentIndex + 1]),
+        ],
       ),
     );
   }

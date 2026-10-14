@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/core/models/episode_model.dart';
 import 'package:storyverse/core/models/player_playback_state.dart';
@@ -196,13 +197,15 @@ void main() {
       int? selectedIndex;
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: EpisodeSelectorSheet(
-              story: story,
-              episodes: episodes,
-              currentIndex: 0,
-              onSelectEpisode: (idx) => selectedIndex = idx,
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: EpisodeSelectorSheet(
+                story: story,
+                episodes: episodes,
+                currentIndex: 0,
+                onSelectEpisode: (idx) => selectedIndex = idx,
+              ),
             ),
           ),
         ),

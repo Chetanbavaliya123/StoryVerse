@@ -19,7 +19,12 @@ import 'package:storyverse/features/profile/data/user_repository.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/vertical_video_view.dart';
 
 class ShortsScreen extends ConsumerStatefulWidget {
-  const ShortsScreen({super.key});
+  final String? initialShortId;
+
+  const ShortsScreen({
+    super.key,
+    this.initialShortId,
+  });
 
   @override
   ConsumerState<ShortsScreen> createState() => _ShortsScreenState();
@@ -29,6 +34,7 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
+  bool _hasJumpedToInitial = false;
 
   VideoPlayerController? _controller;
   VideoPlayerController? _preloadedController;
@@ -90,6 +96,18 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
   }
 
   void _onFeedDataLoaded(List<ShortsItem> feed) {
+    if (!_hasJumpedToInitial && widget.initialShortId != null && feed.isNotEmpty) {
+      _hasJumpedToInitial = true;
+      final idx = feed.indexWhere((s) => s.episode.id == widget.initialShortId || s.story.id == widget.initialShortId);
+      if (idx > 0) {
+        _currentIndex = idx;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_pageController.hasClients) {
+            _pageController.jumpToPage(idx);
+          }
+        });
+      }
+    }
     if (_controller == null &&
         feed.isNotEmpty &&
         _playbackState != PlayerPlaybackState.error) {
