@@ -174,7 +174,7 @@ class PremiumScreen extends ConsumerWidget {
                       );
                     }
                     return SizedBox(
-                      height: 220,
+                      height: 225,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -182,8 +182,8 @@ class PremiumScreen extends ConsumerWidget {
                         itemBuilder: (context, index) {
                           return StoryCard(
                             story: stories[index],
-                            width: 150,
-                            height: 220,
+                            width: 140,
+                            height: 215,
                           );
                         },
                       ),
@@ -228,9 +228,9 @@ class PremiumScreen extends ConsumerWidget {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 3,
-                              childAspectRatio: 0.65,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.58,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 14,
                             ),
                         itemCount: stories.length > 6 ? 6 : stories.length,
                         itemBuilder: (context, index) {
@@ -271,7 +271,7 @@ class PremiumScreen extends ConsumerWidget {
                       );
                     }
                     return SizedBox(
-                      height: 200,
+                      height: 225,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -279,8 +279,8 @@ class PremiumScreen extends ConsumerWidget {
                         itemBuilder: (context, index) {
                           return StoryCard(
                             story: stories[index],
-                            width: 130,
-                            height: 200,
+                            width: 135,
+                            height: 215,
                           );
                         },
                       ),
@@ -456,17 +456,18 @@ class _PremiumGridCard extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(
-                horizontal: 10.0,
-                vertical: 8.0,
+                horizontal: 8.0,
+                vertical: 6.0,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     story.title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
                       height: 1.2,
                     ),
@@ -478,7 +479,7 @@ class _PremiumGridCard extends StatelessWidget {
                     '${story.genreId.toUpperCase()} • ${story.language}',
                     style: const TextStyle(
                       color: AppColors.secondaryText,
-                      fontSize: 9,
+                      fontSize: 8.5,
                       fontWeight: FontWeight.w600,
                     ),
                     maxLines: 1,

@@ -126,7 +126,13 @@ class _StoryCardState extends State<StoryCard>
   Widget _buildPoster(BuildContext context) {
     final tokens = context.tokens;
     final w = widget.width ?? 140.0;
-    final h = widget.height ?? 200.0;
+    final h = widget.height;
+    final isFullWidth = (w == double.infinity);
+
+    // If explicit finite height is provided, use it. Otherwise, if not full-width, default to 215.0
+    final double? cardHeight = (h != null && h.isFinite)
+        ? h
+        : (isFullWidth ? null : 215.0);
 
     return GestureDetector(
       onTapDown: (_) => _scaleController.forward(),
@@ -138,132 +144,113 @@ class _StoryCardState extends State<StoryCard>
         scale: _scaleAnimation,
         child: Container(
           width: w,
-          margin: const EdgeInsets.only(right: 14),
+          height: cardHeight,
+          margin: isFullWidth
+              ? EdgeInsets.zero
+              : const EdgeInsets.only(right: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                height: h,
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  borderRadius: BorderRadius.circular(tokens.radiusMd),
-                  border: Border.all(
-                    color: tokens.border.withValues(alpha: 0.7),
-                    width: 1,
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(tokens.radiusMd),
+                    border: Border.all(
+                      color: tokens.border.withValues(alpha: 0.7),
+                      width: 1,
+                    ),
+                    boxShadow: tokens.softShadow,
                   ),
-                  boxShadow: tokens.softShadow,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(tokens.radiusMd - 1),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Hero(
-                        tag: 'story_poster_${widget.story.id}',
-                        child: ShimmerImage(
-                          imageUrl: widget.story.thumbnailUrl,
-                          title: widget.story.title,
-                          genre: widget.story.genreId,
-                          fit: BoxFit.cover,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(tokens.radiusMd - 1),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Hero(
+                          tag: 'story_poster_${widget.story.id}',
+                          child: ShimmerImage(
+                            imageUrl: widget.story.thumbnailUrl,
+                            title: widget.story.title,
+                            genre: widget.story.genreId,
+                            fit: BoxFit.cover,
+                          ),
                         ),
-                      ),
-                      // Rank Badge if Top 10
-                      if (widget.rank != null)
+                        // Rank Badge if Top 10
+                        if (widget.rank != null)
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.accent,
+                                borderRadius: BorderRadius.circular(6),
+                                boxShadow: tokens.glowShadow,
+                              ),
+                              child: Text(
+                                '#${widget.rank}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Gradient overlay at bottom
                         Positioned(
-                          top: 8,
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          height: 70,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withValues(alpha: 0.85),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Bottom metadata on image
+                        Positioned(
+                          bottom: 8,
                           left: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tokens.accent,
-                              borderRadius: BorderRadius.circular(6),
-                              boxShadow: tokens.glowShadow,
-                            ),
-                            child: Text(
-                              '#${widget.rank}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                        ),
-                      // VIP Badge
-                      if (widget.story.categoryId == 'premium' || widget.story.rating >= 4.8)
-                        Positioned(
-                          top: 8,
                           right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
+                          child: Text(
+                            widget.story.genreId.toUpperCase(),
+                            style: TextStyle(
+                              color: tokens.accent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
                             ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFB800),
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            child: const Text(
-                              'VIP',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 9.5,
-                              ),
-                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      // Gradient overlay at bottom
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 70,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                Colors.black.withValues(alpha: 0.85),
-                                Colors.transparent,
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Bottom metadata on image
-                      Positioned(
-                        bottom: 8,
-                        left: 8,
-                        right: 8,
-                        child: Text(
-                          widget.story.genreId.toUpperCase(),
-                          style: TextStyle(
-                            color: tokens.accent,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 7),
+              const SizedBox(height: 6),
               Text(
                 widget.story.title,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  height: 1.25,
+                  height: 1.2,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -506,14 +493,18 @@ class _StoryCardState extends State<StoryCard>
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const Spacer(),
+                      const SizedBox(height: 6),
                       Text(
                         widget.subtitle ?? '${widget.story.episodeCount} Episodes',
                         style: TextStyle(
                           color: tokens.textMuted,
                           fontSize: 12,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

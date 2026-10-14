@@ -149,7 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         actionLabel: 'See All',
                                       ),
                                       SizedBox(
-                                        height: 200,
+                                        height: 215,
                                         child: ListView.builder(
                                           scrollDirection: Axis.horizontal,
                                           padding: const EdgeInsets.symmetric(
@@ -181,7 +181,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       actionLabel: 'See All',
                                     ),
                                     SizedBox(
-                                      height: 220,
+                                      height: 225,
                                       child: ListView.builder(
                                         scrollDirection: Axis.horizontal,
                                         padding: const EdgeInsets.symmetric(
@@ -192,7 +192,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           return StoryCard(
                                             story: feed.newArrivals[index],
                                             width: 140,
-                                            height: 200,
+                                            height: 215,
                                           );
                                         },
                                       ),
@@ -306,7 +306,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               StorySectionSkeleton(
                                 key: ValueKey('new_arrivals_skeleton'),
                                 title: 'New Arrivals',
-                                height: 200,
+                                height: 215,
                                 cardWidth: 140,
                               ),
                               SectionHeader(
@@ -425,7 +425,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 0.7,
+                  childAspectRatio: 0.65,
                   crossAxisSpacing: 14,
                   mainAxisSpacing: 14,
                 ),
@@ -434,7 +434,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   return StoryCard(
                     story: stories[index],
                     width: double.infinity,
-                    height: double.infinity,
+                    
                   );
                 },
               ),
@@ -593,7 +593,7 @@ class _BecauseYouWatchedSection extends ConsumerWidget {
               actionLabel: 'See All',
             ),
             SizedBox(
-              height: 220,
+              height: 225,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -602,7 +602,7 @@ class _BecauseYouWatchedSection extends ConsumerWidget {
                   return StoryCard(
                     story: recs[index],
                     width: 140,
-                    height: 200,
+                    height: 215,
                   );
                 },
               ),
