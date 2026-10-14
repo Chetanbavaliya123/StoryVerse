@@ -8,6 +8,7 @@ import 'package:storyverse/features/story/data/comment_repository.dart';
 import 'package:storyverse/features/story/data/watch_history_repository.dart';
 import 'package:storyverse/core/models/watch_history_model.dart';
 import 'package:storyverse/core/models/continue_watching_item.dart';
+import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
 
 final masterCatalogProvider = StreamProvider<List<StoryModel>>((ref) {
   return ref.watch(storyRepositoryProvider).streamStories();
@@ -206,28 +207,34 @@ final watchHistoryProgressProvider =
 final continueWatchingProvider = FutureProvider<List<ContinueWatchingItem>>((
   ref,
 ) async {
-  final history = await ref
-      .watch(watchHistoryRepositoryProvider)
-      .getContinueWatching();
-  List<ContinueWatchingItem> items = [];
+  // Bind to auth state changes for strict user isolation
+  final authUser = ref.watch(authStateChangesProvider).value;
+  if (authUser == null) return [];
 
-  for (var entry in history) {
+  final historyRepo = ref.watch(watchHistoryRepositoryProvider);
+  final history = await historyRepo.getContinueWatching();
+  if (history.isEmpty) return [];
+
+  final storyRepo = ref.watch(storyRepositoryProvider);
+  final futures = history.map((entry) async {
     try {
-      final story = await ref
-          .watch(storyRepositoryProvider)
-          .getStory(entry.storyId);
-      final episodes = await ref
-          .watch(storyRepositoryProvider)
-          .getEpisodes(entry.storyId);
+      final story = await storyRepo.getStory(entry.storyId);
+      final episodes = await storyRepo.getEpisodes(entry.storyId);
       if (story != null && episodes.isNotEmpty) {
-        final episode = episodes.firstWhere((e) => e.id == entry.episodeId);
-        items.add(
-          ContinueWatchingItem(story: story, episode: episode, history: entry),
+        final episode = episodes.firstWhere(
+          (e) => e.id == entry.episodeId,
+          orElse: () => episodes.first,
+        );
+        return ContinueWatchingItem(
+          story: story,
+          episode: episode,
+          history: entry,
         );
       }
-    } catch (e) {
-      // Skip if not found
-    }
-  }
-  return items;
+    } catch (_) {}
+    return null;
+  }).toList();
+
+  final resolved = await Future.wait(futures);
+  return resolved.whereType<ContinueWatchingItem>().toList();
 });

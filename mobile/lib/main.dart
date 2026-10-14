@@ -7,7 +7,6 @@ import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 import 'package:storyverse/core/routing/app_router.dart';
 import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
-import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +15,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: false,
+      persistenceEnabled: true,
     );
     debugPrint('Firebase initialized successfully.');
   } catch (e) {
@@ -128,15 +127,7 @@ class _BrandSplashState extends ConsumerState<BrandSplash>
       final authState = ref.read(authStateChangesProvider);
 
       if (authState.isLoading) {
-        return; // Wait for auth state
-      }
-
-      if (authState.value != null) {
-        // Logged in: Wait for real cloud trending stories to load before exiting splash
-        final trending = ref.read(trendingStoriesProvider);
-        if (trending.isLoading || !trending.hasValue) {
-          return; // Stay on icon screen while real data loads in background
-        }
+        return; // Brief wait for local auth state
       }
 
       _triggerExit();
@@ -158,7 +149,6 @@ class _BrandSplashState extends ConsumerState<BrandSplash>
     }
 
     ref.listen(authStateChangesProvider, (_, _) => _checkCompletion());
-    ref.listen(trendingStoriesProvider, (_, _) => _checkCompletion());
 
     return IgnorePointer(
       ignoring: _isAnimatingOut,

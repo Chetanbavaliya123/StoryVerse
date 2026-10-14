@@ -65,14 +65,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     String displayTitle = 'Discover';
     if (_selectedCategory == 'popular') {
       displayTitle = 'Popular';
-    } else if (_selectedCategory == 'trending')
+    } else if (_selectedCategory == 'trending') {
       displayTitle = 'Trending';
-    else if (_selectedCategory == 'new')
+    } else if (_selectedCategory == 'new') {
       displayTitle = 'New Arrivals';
-    else if (_selectedLanguage != null)
+    } else if (_selectedLanguage != null) {
       displayTitle = '${_selectedLanguage!.toUpperCase()} Stories';
-    else if (_selectedGenre != null)
+    } else if (_selectedGenre != null) {
       displayTitle = _selectedGenre!.toUpperCase();
+    }
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
@@ -174,7 +175,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   );
                 }
                 return GridView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     childAspectRatio: 0.65,

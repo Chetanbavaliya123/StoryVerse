@@ -12,6 +12,7 @@ import 'package:storyverse/features/story/data/story_repository.dart';
 import 'package:storyverse/features/story/data/watch_history_repository.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/vertical_video_view.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/episode_player_controls.dart';
+import 'package:storyverse/features/video_player/presentation/widgets/episode_selector_sheet.dart';
 
 class VideoPlayerScreen extends ConsumerStatefulWidget {
   final String storyId;
@@ -260,6 +261,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
 
   void _startHideControlsTimer() {
     _hideControlsTimer?.cancel();
+    if (_controller?.value.isPlaying != true) return;
     _hideControlsTimer = Timer(const Duration(seconds: 3), () {
       if (mounted && _controller?.value.isPlaying == true) {
         setState(() {
@@ -270,31 +272,28 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   }
 
   /// Screen Tap Handler:
-  /// Taps toggle play/pause immediately with brief 500ms feedback (same as Shorts),
-  /// while revealing functions (top bar + timeline) for 3 seconds before auto-hiding.
+  /// Taps toggle play/pause immediately with brief 500ms feedback,
+  /// keeps controls visible when paused, and auto-hides after 3 seconds when playing.
   void _onTapVideoScreen() {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
 
-    // 1. Show functions (top bar + timeline) for 3 seconds, then auto-hide
-    setState(() {
-      _showControls = true;
-    });
-    _startHideControlsTimer();
-
-    // 2. Toggle Play/Pause with brief 500ms feedback icon (same as Shorts)
     if (controller.value.isPlaying) {
       controller.pause();
       _saveProgress();
+      _hideControlsTimer?.cancel();
       setState(() {
         _playbackState = PlayerPlaybackState.paused;
+        _showControls = true;
       });
       _showBriefFeedback(isPlaying: false);
     } else {
       controller.play();
       setState(() {
         _playbackState = PlayerPlaybackState.playing;
+        _showControls = true;
       });
+      _startHideControlsTimer();
       _showBriefFeedback(isPlaying: true);
     }
   }
@@ -361,6 +360,19 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
     _pageController?.dispose();
     WakelockPlus.disable();
     super.dispose();
+  }
+
+  void _openEpisodeSelector() {
+    if (_story == null || _episodes.isEmpty) return;
+    EpisodeSelectorSheet.show(
+      context: context,
+      story: _story!,
+      episodes: _episodes,
+      currentIndex: _currentIndex,
+      onSelectEpisode: (index) {
+        _goToEpisodeIndex(index);
+      },
+    );
   }
 
   @override
@@ -436,6 +448,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
             isLoading: isCurrent ? isLoading : false,
             hasError: isCurrent ? hasGenuineError : false,
             errorMessage: _errorMessage,
+            isCinematicLetterbox: true,
             onRetry: _initializeCurrentEpisode,
             overlay: isCurrent
                 ? EpisodePlayerControls(
@@ -454,6 +467,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                       Navigator.of(context).pop();
                     },
                     onSeek: _seekTo,
+                    onOpenEpisodesSheet: _openEpisodeSelector,
                   )
                 : const SizedBox.shrink(),
           );

@@ -15,6 +15,7 @@ import 'package:storyverse/features/shorts/presentation/widgets/shorts_overlay.d
 import 'package:storyverse/features/story/data/watch_history_repository.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:storyverse/features/library/data/library_repository.dart';
+import 'package:storyverse/features/profile/data/user_repository.dart';
 import 'package:storyverse/features/video_player/presentation/widgets/vertical_video_view.dart';
 
 class ShortsScreen extends ConsumerStatefulWidget {
@@ -30,9 +31,11 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
   int _currentIndex = 0;
 
   VideoPlayerController? _controller;
+  VideoPlayerController? _preloadedController;
+  int? _preloadedIndex;
+
   PlayerPlaybackState _playbackState = PlayerPlaybackState.initializing;
   String _errorMessage = '';
-  bool _isMuted = false;
 
   // Transient tap feedback
   bool _showTapFeedback = false;
@@ -98,10 +101,45 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
     if (_currentIndex < 0 || _currentIndex >= feed.length) return;
 
     final item = feed[_currentIndex];
+    final isMuted = ref.read(shortsMuteProvider);
 
     _progressSaveTimer?.cancel();
     _saveProgress(item: item);
 
+    // If preloaded controller matches current index and is initialized, promote it
+    if (_preloadedController != null &&
+        _preloadedIndex == _currentIndex &&
+        _preloadedController!.value.isInitialized) {
+      if (_controller != null) {
+        _controller!.removeListener(_onControllerUpdate);
+        _controller!.dispose();
+      }
+
+      _controller = _preloadedController;
+      _preloadedController = null;
+      _preloadedIndex = null;
+
+      _controller!.addListener(_onControllerUpdate);
+      await _controller!.setLooping(true);
+      await _controller!.setVolume(isMuted ? 0.0 : 1.0);
+      await _controller!.play();
+
+      _startProgressSaveTimer(item);
+
+      if (mounted) {
+        setState(() {
+          _hasSavedThisLoop = false;
+          _playbackState = PlayerPlaybackState.playing;
+          _errorMessage = '';
+        });
+      }
+
+      // Preload next short in the background
+      _preloadNextShort(feed, _currentIndex + 1);
+      return;
+    }
+
+    // Clean up active controller
     if (_controller != null) {
       _controller!.removeListener(_onControllerUpdate);
       _controller!.dispose();
@@ -132,7 +170,7 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
 
       await controller.initialize().timeout(const Duration(seconds: 15));
       await controller.setLooping(true);
-      await controller.setVolume(_isMuted ? 0.0 : 1.0);
+      await controller.setVolume(isMuted ? 0.0 : 1.0);
 
       controller.addListener(_onControllerUpdate);
       await controller.play();
@@ -144,6 +182,9 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
           _playbackState = PlayerPlaybackState.playing;
         });
       }
+
+      // Preload next short in background
+      _preloadNextShort(feed, _currentIndex + 1);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -151,6 +192,34 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
           _errorMessage = 'Unable to play this short. Please try again.';
         });
       }
+    }
+  }
+
+  Future<void> _preloadNextShort(List<ShortsItem> feed, int nextIndex) async {
+    if (nextIndex < 0 || nextIndex >= feed.length) return;
+    if (_preloadedIndex == nextIndex && _preloadedController != null) return;
+
+    try {
+      if (_preloadedController != null) {
+        await _preloadedController!.dispose();
+        _preloadedController = null;
+        _preloadedIndex = null;
+      }
+
+      final nextItem = feed[nextIndex];
+      final rawUrl = nextItem.episode.videoUrl.trim();
+      if (rawUrl.isEmpty) return;
+
+      final normalizedUrl = VideoUrlHelper.normalize(rawUrl);
+      final nextController =
+          VideoPlayerController.networkUrl(Uri.parse(normalizedUrl));
+      _preloadedController = nextController;
+      _preloadedIndex = nextIndex;
+
+      await nextController.initialize();
+      await nextController.setVolume(0.0);
+    } catch (_) {
+      // Preload failures silently drop without interrupting user experience
     }
   }
 
@@ -270,10 +339,14 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
   }
 
   void _toggleMute() {
-    setState(() {
-      _isMuted = !_isMuted;
-    });
-    _controller?.setVolume(_isMuted ? 0.0 : 1.0);
+    final currentMute = ref.read(shortsMuteProvider);
+    final nextMute = !currentMute;
+    ref.read(shortsMuteProvider.notifier).setMuted(nextMute);
+    _controller?.setVolume(nextMute ? 0.0 : 1.0);
+    _preloadedController?.setVolume(0.0);
+    ref
+        .read(userRepositoryProvider)
+        .updateSinglePreference('isMuted', nextMute);
   }
 
   void _onPageChanged(int index, List<ShortsItem> feed) {
@@ -300,6 +373,7 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
       _controller!.removeListener(_onControllerUpdate);
       _controller!.dispose();
     }
+    _preloadedController?.dispose();
     _pageController.dispose();
     WakelockPlus.disable();
     super.dispose();
@@ -406,7 +480,8 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
                           ? ShortsOverlay(
                               story: item.story,
                               episode: item.episode,
-                              isMuted: _isMuted,
+                              controller: _controller,
+                              isMuted: ref.watch(shortsMuteProvider),
                               isFavorite: isFavorite,
                               isInLibrary: isSaved,
                               isCompleted: isCompleted,
@@ -441,6 +516,13 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
                                 _saveProgress(item: item);
                                 _controller?.pause();
                                 context.push('/story/${item.story.id}');
+                              },
+                              onWatchNow: () {
+                                _saveProgress(item: item);
+                                _controller?.pause();
+                                context.push(
+                                  '/story/${item.story.id}?episodeId=${item.episode.id}',
+                                );
                               },
                               onTapVideo: _togglePlayPause,
                             )

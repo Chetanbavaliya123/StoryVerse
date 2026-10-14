@@ -69,13 +69,10 @@ class ShortsRepository {
           // Shuffle stories to ensure varied discovery across genres and languages
           eligibleStories.shuffle(_random);
 
-          final items = <ShortsItem>[];
-          // Sample stories to query their episodes subcollection
-          final storiesToQuery = eligibleStories.take(batchSize * 2).toList();
+          // Sample stories and query their episodes subcollections in parallel
+          final storiesToQuery = eligibleStories.take(batchSize).toList();
 
-          for (final story in storiesToQuery) {
-            if (items.length >= batchSize) break;
-
+          final episodeFutures = storiesToQuery.map((story) async {
             try {
               final episodesSnapshot = await firestore
                   .collection('stories')
@@ -94,7 +91,7 @@ class ShortsRepository {
                       !VideoUrlHelper.isYouTube(ep.videoUrl))
                   .toList();
 
-              if (eligibleEpisodes.isEmpty) continue;
+              if (eligibleEpisodes.isEmpty) return null;
 
               eligibleEpisodes.shuffle(_random);
 
@@ -109,15 +106,15 @@ class ShortsRepository {
                 }
               }
 
-              // If all were seen in this story, pick any random episode
               selectedEpisode ??= eligibleEpisodes.first;
-
-              items.add(ShortsItem(story: story, episode: selectedEpisode));
+              return ShortsItem(story: story, episode: selectedEpisode);
             } catch (_) {
-              // If individual story subcollection fetch fails, continue with next
-              continue;
+              return null;
             }
-          }
+          });
+
+          final results = await Future.wait(episodeFutures);
+          final items = results.whereType<ShortsItem>().toList();
 
           if (items.isNotEmpty) {
             items.shuffle(_random);

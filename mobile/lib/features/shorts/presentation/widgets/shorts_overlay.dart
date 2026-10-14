@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:video_player/video_player.dart';
 import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/core/models/episode_model.dart';
 import 'package:storyverse/core/theme/design_tokens.dart';
@@ -8,6 +9,7 @@ import 'package:storyverse/core/theme/design_tokens.dart';
 class ShortsOverlay extends StatefulWidget {
   final StoryModel story;
   final EpisodeModel episode;
+  final VideoPlayerController? controller;
   final bool isMuted;
   final bool isFavorite;
   final bool isInLibrary;
@@ -19,12 +21,14 @@ class ShortsOverlay extends StatefulWidget {
   final VoidCallback onToggleBookmark;
   final VoidCallback onShare;
   final VoidCallback onViewStory;
+  final VoidCallback? onWatchNow;
   final VoidCallback onTapVideo;
 
   const ShortsOverlay({
     super.key,
     required this.story,
     required this.episode,
+    this.controller,
     required this.isMuted,
     required this.isFavorite,
     required this.isInLibrary,
@@ -36,6 +40,7 @@ class ShortsOverlay extends StatefulWidget {
     required this.onToggleBookmark,
     required this.onShare,
     required this.onViewStory,
+    this.onWatchNow,
     required this.onTapVideo,
   });
 
@@ -320,7 +325,53 @@ class _ShortsOverlayState extends State<ShortsOverlay>
                   overflow: TextOverflow.ellipsis,
                 ),
 
-                // 7. Subtle Swipe-Up Suggestion when completed
+                // 7. Watch Now CTA Button
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: widget.onWatchNow ?? widget.onViewStory,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFE53935).withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Watch Now',
+                          style: DesignTokens.titleStyle.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 8. Subtle Swipe-Up Suggestion when completed
                 if (widget.isCompleted) ...[
                   const SizedBox(height: 12),
                   AnimatedBuilder(
@@ -368,6 +419,83 @@ class _ShortsOverlayState extends State<ShortsOverlay>
             ),
           ),
         ),
+
+        // 9. Interactive Bottom Seek Bar (Modern Shorts Timeline)
+        if (widget.controller != null && widget.controller!.value.isInitialized)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: ValueListenableBuilder<VideoPlayerValue>(
+              valueListenable: widget.controller!,
+              builder: (context, value, _) {
+                final durationMs = value.duration.inMilliseconds;
+                final positionMs = value.position.inMilliseconds.clamp(
+                  0,
+                  durationMs > 0 ? durationMs : 1,
+                );
+                final progress =
+                    durationMs > 0 ? positionMs / durationMs : 0.0;
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onHorizontalDragUpdate: (details) {
+                        if (durationMs > 0) {
+                          final localX = details.localPosition.dx
+                              .clamp(0.0, constraints.maxWidth);
+                          final ratio = localX / constraints.maxWidth;
+                          final targetMs = (ratio * durationMs).toInt();
+                          widget.controller
+                              ?.seekTo(Duration(milliseconds: targetMs));
+                        }
+                      },
+                      onTapDown: (details) {
+                        if (durationMs > 0) {
+                          final localX = details.localPosition.dx
+                              .clamp(0.0, constraints.maxWidth);
+                          final ratio = localX / constraints.maxWidth;
+                          final targetMs = (ratio * durationMs).toInt();
+                          widget.controller
+                              ?.seekTo(Duration(milliseconds: targetMs));
+                        }
+                      },
+                      child: Container(
+                        height: 16,
+                        alignment: Alignment.bottomCenter,
+                        color: Colors.transparent,
+                        child: Stack(
+                          children: [
+                            Container(
+                              height: 3,
+                              color: Colors.white.withValues(alpha: 0.25),
+                            ),
+                            FractionallySizedBox(
+                              widthFactor: progress.clamp(0.0, 1.0),
+                              child: Container(
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: DesignTokens.primaryAccent,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: DesignTokens.primaryAccent
+                                          .withValues(alpha: 0.6),
+                                      blurRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
       ],
     );
   }

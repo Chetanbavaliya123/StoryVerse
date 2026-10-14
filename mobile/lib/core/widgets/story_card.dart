@@ -11,6 +11,7 @@ class StoryCard extends StatefulWidget {
   final double width;
   final double height;
   final bool isHorizontal;
+  final double? progress;
   final VoidCallback? onDelete;
 
   const StoryCard({
@@ -18,6 +19,7 @@ class StoryCard extends StatefulWidget {
     required this.story,
     this.subtitle,
     this.onTap,
+    this.progress,
     this.width = 140,
     this.height = 200,
     this.isHorizontal = false,
@@ -183,17 +185,35 @@ class _StoryCardState extends State<StoryCard>
           ),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(11),
-                  bottomLeft: Radius.circular(11),
-                ),
-                child: NetworkImageWithFallback(
-                  imageUrl: widget.story.thumbnailUrl,
-                  width: 100,
-                  height: 120,
-                  fit: BoxFit.cover,
-                ),
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(11),
+                      bottomLeft: Radius.circular(11),
+                    ),
+                    child: NetworkImageWithFallback(
+                      imageUrl: widget.story.thumbnailUrl,
+                      width: 100,
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  if (widget.progress != null && widget.progress! > 0)
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearProgressIndicator(
+                        value: widget.progress!.clamp(0.0, 1.0),
+                        backgroundColor: Colors.black54,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          AppColors.primaryAccent,
+                        ),
+                        minHeight: 4,
+                      ),
+                    ),
+                ],
               ),
               Expanded(
                 child: Padding(

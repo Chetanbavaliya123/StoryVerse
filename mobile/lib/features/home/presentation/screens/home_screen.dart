@@ -35,16 +35,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.primaryBackground,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: FloatingActionButton(
-          heroTag: 'ai_hub_fab',
-          onPressed: () => context.push('/ai'),
-          backgroundColor: AppColors.primaryAccent,
-          child: const Icon(Icons.auto_awesome, color: Colors.white),
-        ),
-      ),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -71,7 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         if (stories.isEmpty) return const SizedBox(height: 100);
                         return HeroCarousel(stories: stories);
                       },
-                      loading: () => const SizedBox.shrink(),
+                      loading: () => const HeroCarouselSkeleton(),
                       error: (_, _) => const SizedBox(height: 100),
                     ),
 
@@ -112,7 +102,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ],
                         );
                       },
-                      loading: () => const SizedBox.shrink(),
+                      loading: () => const StorySectionSkeleton(title: 'Trending Now'),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
 
@@ -210,7 +200,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         );
                       },
-                      loading: () => const SizedBox.shrink(),
+                      loading: () => const StoryGridSkeleton(title: 'Popular on StoryVerse'),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
 
@@ -298,7 +288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         );
                       },
-                      loading: () => const SizedBox.shrink(),
+                      loading: () => const TopRankedSkeleton(),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
 
@@ -352,7 +342,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         );
                       },
-                      loading: () => const SizedBox.shrink(),
+                      loading: () => const StorySectionSkeleton(
+                        title: 'New on StoryVerse',
+                        height: 180,
+                        cardWidth: 120,
+                      ),
                       error: (_, _) => const SizedBox.shrink(),
                     ),
 

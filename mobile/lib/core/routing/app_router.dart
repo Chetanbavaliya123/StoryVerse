@@ -143,10 +143,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: 'storyDetails',
         pageBuilder: (context, state) {
           final storyId = state.pathParameters['id']!;
+          final episodeId = state.uri.queryParameters['episodeId'];
           return _buildPageWithTransition(
             context: context,
             state: state,
-            child: StoryDetailsScreen(storyId: storyId),
+            child: StoryDetailsScreen(
+              storyId: storyId,
+              initialEpisodeId: episodeId,
+            ),
             slideUp: true,
           );
         },
@@ -289,7 +293,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/library',
                 name: 'library',
-                builder: (context, state) => const LibraryScreen(),
+                builder: (context, state) {
+                  final tabStr = state.uri.queryParameters['tab'];
+                  final tabIndex = tabStr != null ? int.tryParse(tabStr) : null;
+                  return LibraryScreen(initialTabIndex: tabIndex);
+                },
               ),
             ],
           ),

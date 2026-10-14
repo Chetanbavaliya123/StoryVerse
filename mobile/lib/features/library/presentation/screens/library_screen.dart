@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:storyverse/core/widgets/story_card.dart';
@@ -8,7 +10,8 @@ import 'package:storyverse/core/widgets/skeleton_loader.dart';
 import 'package:storyverse/features/library/data/library_repository.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
-  const LibraryScreen({super.key});
+  final int? initialTabIndex;
+  const LibraryScreen({super.key, this.initialTabIndex});
 
   @override
   ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
@@ -18,11 +21,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final Set<String> _hiddenStoryIds = {};
+  final Map<String, Timer> _pendingDeletionTimers = {};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    final initialIndex = (widget.initialTabIndex ?? 0).clamp(0, 3);
+    _tabController = TabController(
+      length: 4,
+      vsync: this,
+      initialIndex: initialIndex,
+    );
     _tabController.addListener(() {
       setState(() {});
     });
@@ -30,8 +39,67 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
 
   @override
   void dispose() {
+    for (final timer in _pendingDeletionTimers.values) {
+      timer.cancel();
+    }
     _tabController.dispose();
     super.dispose();
+  }
+
+  String _formatWatchTimestamp(DateTime? dateTime) {
+    if (dateTime == null) return 'Watched recently';
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    }
+  }
+
+  void _deleteWithUndo({
+    required BuildContext context,
+    required String storyId,
+    required String storyTitle,
+  }) {
+    setState(() {
+      _hiddenStoryIds.add(storyId);
+    });
+
+    _pendingDeletionTimers[storyId]?.cancel();
+    _pendingDeletionTimers[storyId] = Timer(const Duration(seconds: 4), () {
+      ref.read(libraryRepositoryProvider).removeFromWatchHistory(storyId);
+      _pendingDeletionTimers.remove(storyId);
+    });
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Removed "$storyTitle" from history'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: AppColors.primaryAccent,
+          onPressed: () {
+            _pendingDeletionTimers[storyId]?.cancel();
+            _pendingDeletionTimers.remove(storyId);
+            setState(() {
+              _hiddenStoryIds.remove(storyId);
+            });
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -130,12 +198,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
   }
 
   Widget _buildHistoryTab() {
-    final historyAsync = ref.watch(watchHistoryStoriesProvider);
+    final historyAsync = ref.watch(detailedWatchHistoryProvider);
 
     return historyAsync.when(
-      data: (stories) {
-        final visibleStories = stories.where((s) => !_hiddenStoryIds.contains(s.id)).toList();
-        if (visibleStories.isEmpty) {
+      data: (items) {
+        final visibleItems = items
+            .where((item) => !_hiddenStoryIds.contains(item.story.id))
+            .toList();
+        if (visibleItems.isEmpty) {
           return const EmptyState(
             icon: Icons.history_rounded,
             title: 'No Watch History',
@@ -145,7 +215,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
         return Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -153,55 +224,71 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
                     onPressed: () async {
                       final confirm = await showDialog<bool>(
                         context: context,
-                        builder: (context) => AlertDialog(
+                        builder: (dialogCtx) => AlertDialog(
                           backgroundColor: AppColors.primarySurface,
-                          title: const Text('Clear History', style: TextStyle(color: Colors.white)),
-                          content: const Text('Are you sure you want to clear all your watch history?', style: TextStyle(color: AppColors.secondaryText)),
+                          title: const Text('Clear History',
+                              style: TextStyle(color: Colors.white)),
+                          content: const Text(
+                              'Are you sure you want to clear your entire watch history? This cannot be undone.',
+                              style: TextStyle(color: AppColors.secondaryText)),
                           actions: [
                             TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                              onPressed: () => Navigator.pop(dialogCtx, false),
+                              child: const Text('Cancel',
+                                  style: TextStyle(color: Colors.white)),
                             ),
                             TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Clear', style: TextStyle(color: Colors.redAccent)),
+                              onPressed: () => Navigator.pop(dialogCtx, true),
+                              child: const Text('Clear All',
+                                  style: TextStyle(color: Colors.redAccent)),
                             ),
                           ],
                         ),
                       );
                       if (confirm == true) {
-                        await ref.read(libraryRepositoryProvider).clearWatchHistory();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Watch history cleared')));
-                        }
+                        await ref
+                            .read(libraryRepositoryProvider)
+                            .clearWatchHistory();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Watch history cleared'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
                       }
                     },
-                    icon: const Icon(Icons.delete_sweep_rounded, color: AppColors.secondaryText, size: 20),
-                    label: const Text('Clear History', style: TextStyle(color: AppColors.secondaryText)),
+                    icon: const Icon(Icons.delete_sweep_rounded,
+                        color: AppColors.secondaryText, size: 20),
+                    label: const Text('Clear History',
+                        style: TextStyle(color: AppColors.secondaryText)),
                   ),
                 ],
               ),
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                itemCount: visibleStories.length,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                itemCount: visibleItems.length,
                 itemBuilder: (context, index) {
-                  final story = visibleStories[index];
+                  final item = visibleItems[index];
+                  final timeAgo =
+                      _formatWatchTimestamp(item.history.lastWatchedAt);
+                  final pct = (item.history.percentage * 100).toInt();
+
                   return StoryCard(
-                    story: story,
+                    story: item.story,
                     isHorizontal: true,
-                    subtitle: 'Last watched recently',
-                    onDelete: () {
-                      setState(() {
-                        _hiddenStoryIds.add(story.id);
-                      });
-                      ref.read(libraryRepositoryProvider).removeFromWatchHistory(story.id).then((_) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Removed from history')));
-                        }
-                      });
-                    },
+                    subtitle: 'Ep ${item.episode.episodeNumber} • $timeAgo ($pct%)',
+                    progress: item.history.percentage,
+                    onTap: () => context.push(
+                      '/player/${item.story.id}/${item.episode.id}',
+                    ),
+                    onDelete: () => _deleteWithUndo(
+                      context: context,
+                      storyId: item.story.id,
+                      storyTitle: item.story.title,
+                    ),
                   );
                 },
               ),

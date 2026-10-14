@@ -20,6 +20,7 @@ class EpisodePlayerControls extends StatelessWidget {
   final VoidCallback onToggleMute;
   final VoidCallback onBack;
   final ValueChanged<Duration> onSeek;
+  final VoidCallback? onOpenEpisodesSheet;
 
   const EpisodePlayerControls({
     super.key,
@@ -35,6 +36,7 @@ class EpisodePlayerControls extends StatelessWidget {
     required this.onToggleMute,
     required this.onBack,
     required this.onSeek,
+    this.onOpenEpisodesSheet,
   });
 
   @override
@@ -65,7 +67,7 @@ class EpisodePlayerControls extends StatelessWidget {
           child: Container(color: Colors.transparent),
         ),
 
-        // 2. Gradients overlay (only visible when controls are visible)
+        // 2. Cinematic gradients overlay (only visible when controls are visible)
         AnimatedOpacity(
           opacity: (showControls && effectiveInitialized) ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 250),
@@ -76,19 +78,20 @@ class EpisodePlayerControls extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.75),
-                    Colors.transparent,
-                    Colors.transparent,
                     Colors.black.withValues(alpha: 0.85),
+                    Colors.black.withValues(alpha: 0.20),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.black.withValues(alpha: 0.90),
                   ],
-                  stops: const [0.0, 0.22, 0.6, 1.0],
+                  stops: const [0.0, 0.20, 0.50, 0.75, 1.0],
                 ),
               ),
             ),
           ),
         ),
 
-        // 3. Transient Tap Feedback (briefly appears on tap, then fades to invisible, same as Shorts!)
+        // 3. Transient Tap Feedback (briefly appears on tap, then fades to invisible)
         if (showTapFeedback)
           Center(
             child: IgnorePointer(
@@ -100,10 +103,10 @@ class EpisodePlayerControls extends StatelessWidget {
                     width: 68,
                     height: 68,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.5),
+                      color: Colors.black.withValues(alpha: 0.6),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withValues(alpha: 0.25),
                         width: 1.5,
                       ),
                     ),
@@ -131,7 +134,9 @@ class EpisodePlayerControls extends StatelessWidget {
             ),
           ),
 
-        // 4. Top Controls: BACK (left) and MUTE (right)
+
+
+        // 5. Top Controls: BACK (left), TITLE & EPISODE (center), MUTE / EPISODES (right)
         Positioned(
           top: 0,
           left: 0,
@@ -158,10 +163,10 @@ class EpisodePlayerControls extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.4),
+                                color: Colors.black.withValues(alpha: 0.45),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.2),
+                                  color: Colors.white.withValues(alpha: 0.18),
                                 ),
                               ),
                               child: const Icon(
@@ -174,9 +179,9 @@ class EpisodePlayerControls extends StatelessWidget {
                         ),
                       ),
 
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
 
-                      // Episode Header Info
+                      // Episode Header Info: Story title & Episode X
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,23 +190,75 @@ class EpisodePlayerControls extends StatelessWidget {
                             Text(
                               story.title,
                               style: DesignTokens.titleStyle.copyWith(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.2,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            Text(
-                              'Episode ${episode.episodeNumber}',
-                              style: DesignTokens.bodyStyle.copyWith(
-                                fontSize: 11,
-                                color: DesignTokens.primaryAccent,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: DesignTokens.primaryAccent
+                                        .withValues(alpha: 0.25),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: DesignTokens.primaryAccent
+                                          .withValues(alpha: 0.4),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'EPISODE ${episode.episodeNumber}',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: DesignTokens.primaryAccent,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
+
+                      // Episodes Sheet Trigger (if provided)
+                      if (onOpenEpisodesSheet != null) ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(22),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: GestureDetector(
+                              onTap: onOpenEpisodesSheet,
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.18),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.video_library_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
 
                       // Mute / Unmute Button
                       ClipRRect(
@@ -213,10 +270,10 @@ class EpisodePlayerControls extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.4),
+                                color: Colors.black.withValues(alpha: 0.45),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.2),
+                                  color: Colors.white.withValues(alpha: 0.18),
                                 ),
                               ),
                               child: Icon(
@@ -238,7 +295,7 @@ class EpisodePlayerControls extends StatelessWidget {
           ),
         ),
 
-        // 5. Bottom Controls: PLAYBACK TIMELINE + Episode Title (Interactive)
+        // 6. Bottom Controls: PLAYBACK TIMELINE + Episode Title (Interactive)
         Positioned(
           left: 16,
           right: 16,
@@ -260,6 +317,7 @@ class EpisodePlayerControls extends StatelessWidget {
                       style: DesignTokens.titleStyle.copyWith(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: -0.2,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

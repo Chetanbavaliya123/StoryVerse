@@ -12,6 +12,7 @@ class VerticalVideoView extends StatelessWidget {
   final String errorMessage;
   final VoidCallback onRetry;
   final Widget overlay;
+  final bool isCinematicLetterbox;
 
   const VerticalVideoView({
     super.key,
@@ -22,6 +23,7 @@ class VerticalVideoView extends StatelessWidget {
     required this.errorMessage,
     required this.onRetry,
     required this.overlay,
+    this.isCinematicLetterbox = false,
   });
 
   @override
@@ -35,14 +37,14 @@ class VerticalVideoView extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Ambient Blurred Backdrop
-          if (thumbnailUrl.isNotEmpty)
+          // 1. Ambient Blurred Backdrop (only in discovery / shorts mode)
+          if (!isCinematicLetterbox && thumbnailUrl.isNotEmpty)
             NetworkImageWithFallback(
               imageUrl: thumbnailUrl,
               fit: BoxFit.cover,
             ),
 
-          if (thumbnailUrl.isNotEmpty)
+          if (!isCinematicLetterbox && thumbnailUrl.isNotEmpty)
             BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
               child: Container(
@@ -50,13 +52,29 @@ class VerticalVideoView extends StatelessWidget {
               ),
             ),
 
-          // 2. Main Video Layer with Aspect Ratio
+          // 2. Main Video Layer (BoxFit.cover for Shorts, AspectRatio for Cinematic Letterbox)
           if (isInitialized && !hasError)
             Center(
-              child: AspectRatio(
-                aspectRatio: controller!.value.aspectRatio,
-                child: VideoPlayer(controller!),
-              ),
+              child: isCinematicLetterbox
+                  ? AspectRatio(
+                      aspectRatio: controller!.value.aspectRatio,
+                      child: VideoPlayer(controller!),
+                    )
+                  : SizedBox.expand(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        clipBehavior: Clip.hardEdge,
+                        child: SizedBox(
+                          width: controller!.value.size.width > 0
+                              ? controller!.value.size.width
+                              : 1080,
+                          height: controller!.value.size.height > 0
+                              ? controller!.value.size.height
+                              : 1920,
+                          child: VideoPlayer(controller!),
+                        ),
+                      ),
+                    ),
             ),
 
           // 3. Loading State

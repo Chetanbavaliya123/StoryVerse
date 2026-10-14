@@ -1,10 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/features/shorts/data/shorts_repository.dart';
+import 'package:storyverse/features/profile/data/user_repository.dart';
+
+class ShortsMuteNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    final profile = ref.watch(currentUserProfileProvider).value;
+    if (profile != null && profile.preferences.containsKey('isMuted')) {
+      return profile.preferences['isMuted'] as bool? ?? false;
+    }
+    return false;
+  }
+
+  void setMuted(bool value) {
+    state = value;
+  }
+}
+
+final shortsMuteProvider = NotifierProvider<ShortsMuteNotifier, bool>(() {
+  return ShortsMuteNotifier();
+});
 
 final shortsFeedProvider =
     AsyncNotifierProvider<ShortsFeedNotifier, List<ShortsItem>>(() {
-  return ShortsFeedNotifier();
-});
+      return ShortsFeedNotifier();
+    });
 
 class ShortsFeedNotifier extends AsyncNotifier<List<ShortsItem>> {
   bool _isLoadingMore = false;
@@ -41,6 +61,8 @@ class ShortsFeedNotifier extends AsyncNotifier<List<ShortsItem>> {
     final repo = ref.read(shortsRepositoryProvider);
     repo.resetSeenSession();
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => repo.fetchRandomShortsBatch(batchSize: 10));
+    state = await AsyncValue.guard(
+      () => repo.fetchRandomShortsBatch(batchSize: 10),
+    );
   }
 }

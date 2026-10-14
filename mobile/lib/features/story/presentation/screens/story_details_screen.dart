@@ -13,7 +13,13 @@ import 'package:storyverse/core/widgets/skeleton_loader.dart'
 
 class StoryDetailsScreen extends ConsumerStatefulWidget {
   final String storyId;
-  const StoryDetailsScreen({super.key, required this.storyId});
+  final String? initialEpisodeId;
+
+  const StoryDetailsScreen({
+    super.key,
+    required this.storyId,
+    this.initialEpisodeId,
+  });
 
   @override
   ConsumerState<StoryDetailsScreen> createState() => _StoryDetailsScreenState();
@@ -369,43 +375,57 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                     ),
                                   ],
                                 ),
-                                child: ElevatedButton(
-                                  onPressed: () {
+                                child: Builder(
+                                  builder: (context) {
                                     final episodes =
-                                        episodesAsync.asData?.value;
-                                    if (episodes != null &&
-                                        episodes.isNotEmpty) {
-                                      context.push(
-                                        '/player/${widget.storyId}/${episodes.first.id}',
-                                      );
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.play_arrow_rounded,
-                                        size: 28,
-                                        color: Colors.white,
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'Start Watching',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                        episodesAsync.asData?.value ?? [];
+                                    final targetEpisode = (widget.initialEpisodeId != null &&
+                                            episodes.any((e) => e.id == widget.initialEpisodeId))
+                                        ? episodes.firstWhere((e) => e.id == widget.initialEpisodeId)
+                                        : (episodes.isNotEmpty ? episodes.first : null);
+
+                                    final isDirectShortTarget = widget.initialEpisodeId != null &&
+                                        targetEpisode != null &&
+                                        targetEpisode.id == widget.initialEpisodeId;
+
+                                    return ElevatedButton(
+                                      onPressed: () {
+                                        if (targetEpisode != null) {
+                                          context.push(
+                                            '/player/${widget.storyId}/${targetEpisode.id}',
+                                          );
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.play_arrow_rounded,
+                                            size: 28,
+                                            color: Colors.white,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            isDirectShortTarget
+                                                ? 'Watch Episode ${targetEpisode.episodeNumber}'
+                                                : 'Start Watching',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
@@ -521,6 +541,8 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                         return Consumer(
                           builder: (context, ref, _) {
                             final ep = episodes[index];
+                            final isTarget = widget.initialEpisodeId != null &&
+                                ep.id == widget.initialEpisodeId;
                             final progressAsync = ref.watch(
                               watchHistoryProgressProvider(
                                 '${widget.storyId}||${ep.id}',
@@ -538,17 +560,23 @@ class _StoryDetailsScreenState extends ConsumerState<StoryDetailsScreen> {
                                 ),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF181818),
+                                  color: isTarget
+                                      ? const Color(0xFF221113)
+                                      : const Color(0xFF181818),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.05),
+                                    color: isTarget
+                                        ? AppColors.primaryAccent
+                                        : Colors.white.withValues(alpha: 0.05),
+                                    width: isTarget ? 1.5 : 1.0,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      blurRadius: 8,
+                                      color: isTarget
+                                          ? AppColors.primaryAccent
+                                              .withValues(alpha: 0.25)
+                                          : Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: isTarget ? 12 : 8,
                                       offset: const Offset(0, 4),
                                     ),
                                   ],
