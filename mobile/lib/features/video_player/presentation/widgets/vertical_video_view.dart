@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:storyverse/core/theme/design_tokens.dart';
@@ -37,19 +36,19 @@ class VerticalVideoView extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Ambient Blurred Backdrop (only in discovery / shorts mode)
-          if (!isCinematicLetterbox && thumbnailUrl.isNotEmpty)
-            NetworkImageWithFallback(
-              imageUrl: thumbnailUrl,
-              fit: BoxFit.cover,
-            ),
-
-          if (!isCinematicLetterbox && thumbnailUrl.isNotEmpty)
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.65),
-              ),
+          // 1. Thumbnail placeholder until video is initialized
+          if (!isInitialized && thumbnailUrl.isNotEmpty)
+            Stack(
+              fit: StackFit.expand,
+              children: [
+                NetworkImageWithFallback(
+                  imageUrl: thumbnailUrl,
+                  fit: BoxFit.cover,
+                ),
+                Container(
+                  color: Colors.black.withValues(alpha: 0.65),
+                ),
+              ],
             ),
 
           // 2. Main Video Layer (BoxFit.cover for Shorts, AspectRatio for Cinematic Letterbox)

@@ -42,9 +42,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
       vsync: this,
       initialIndex: initialIndex,
     );
-    _tabController.addListener(() {
-      setState(() {});
-    });
   }
 
   @override
@@ -198,29 +195,37 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          RefreshIndicator(
-            color: AppColors.primaryAccent,
-            backgroundColor: const Color(0xFF1E1E24),
-            onRefresh: _onRefresh,
-            child: _buildHistoryTab(),
+          _KeepAliveTab(
+            child: RefreshIndicator(
+              color: AppColors.primaryAccent,
+              backgroundColor: const Color(0xFF1E1E24),
+              onRefresh: _onRefresh,
+              child: _buildHistoryTab(),
+            ),
           ),
-          RefreshIndicator(
-            color: AppColors.primaryAccent,
-            backgroundColor: const Color(0xFF1E1E24),
-            onRefresh: _onRefresh,
-            child: _buildFavoritesTab(),
+          _KeepAliveTab(
+            child: RefreshIndicator(
+              color: AppColors.primaryAccent,
+              backgroundColor: const Color(0xFF1E1E24),
+              onRefresh: _onRefresh,
+              child: _buildFavoritesTab(),
+            ),
           ),
-          RefreshIndicator(
-            color: AppColors.primaryAccent,
-            backgroundColor: const Color(0xFF1E1E24),
-            onRefresh: _onRefresh,
-            child: _buildDownloadsTab(),
+          _KeepAliveTab(
+            child: RefreshIndicator(
+              color: AppColors.primaryAccent,
+              backgroundColor: const Color(0xFF1E1E24),
+              onRefresh: _onRefresh,
+              child: _buildDownloadsTab(),
+            ),
           ),
-          RefreshIndicator(
-            color: AppColors.primaryAccent,
-            backgroundColor: const Color(0xFF1E1E24),
-            onRefresh: _onRefresh,
-            child: _buildAiStoriesTab(),
+          _KeepAliveTab(
+            child: RefreshIndicator(
+              color: AppColors.primaryAccent,
+              backgroundColor: const Color(0xFF1E1E24),
+              onRefresh: _onRefresh,
+              child: _buildAiStoriesTab(),
+            ),
           ),
         ],
       ),
@@ -504,5 +509,25 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
         );
       },
     );
+  }
+}
+
+class _KeepAliveTab extends StatefulWidget {
+  final Widget child;
+  const _KeepAliveTab({required this.child});
+
+  @override
+  State<_KeepAliveTab> createState() => _KeepAliveTabState();
+}
+
+class _KeepAliveTabState extends State<_KeepAliveTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

@@ -386,11 +386,23 @@ class EpisodePlayerControls extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     // Interactive Timeline Seek Bar (01:24 ━━━●━━━ 04:50)
-                    VerticalSeekBar(
-                      position: position,
-                      duration: duration,
-                      onSeek: onSeek,
-                    ),
+                    if (controller != null)
+                      ValueListenableBuilder<VideoPlayerValue>(
+                        valueListenable: controller!,
+                        builder: (context, value, _) {
+                          return VerticalSeekBar(
+                            position: value.position,
+                            duration: value.duration,
+                            onSeek: onSeek,
+                          );
+                        },
+                      )
+                    else
+                      VerticalSeekBar(
+                        position: position,
+                        duration: duration,
+                        onSeek: onSeek,
+                      ),
                   ],
                 ),
               ),

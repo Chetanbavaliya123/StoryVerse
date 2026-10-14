@@ -234,9 +234,6 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         setState(() {
           _playbackState = newState;
         });
-      } else {
-        // Continuous position rebuild for timeline
-        setState(() {});
       }
     }
   }

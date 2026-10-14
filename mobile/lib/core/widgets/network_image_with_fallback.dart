@@ -31,12 +31,21 @@ class NetworkImageWithFallback extends StatelessWidget {
         errorBuilder: _buildError,
       );
     } else {
+      final cacheW = (width != null && width!.isFinite && width! > 0)
+          ? (width! * 2).round()
+          : 400;
+      final cacheH = (height != null && height!.isFinite && height! > 0)
+          ? (height! * 2).round()
+          : 600;
+
       imageWidget = CachedNetworkImage(
         imageUrl: imageUrl,
         width: width,
         height: height,
         fit: fit,
-        filterQuality: FilterQuality.high,
+        filterQuality: FilterQuality.medium,
+        memCacheWidth: cacheW,
+        memCacheHeight: cacheH,
         placeholder: (context, url) => _buildPlaceholder(),
         errorWidget: (context, url, error) => _buildError(context, error, null),
       );
