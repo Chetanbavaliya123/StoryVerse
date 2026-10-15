@@ -99,8 +99,11 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
   @override
   void didPushNext() {
     // Another route was pushed on top of Shorts
+    _progressSaveTimer?.cancel();
     _controller?.pause();
     _controller?.setVolume(0.0);
+    _preloadedController?.pause();
+    _preloadedController?.setVolume(0.0);
     WakelockPlus.disable();
   }
 
@@ -114,6 +117,10 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
       final isMuted = ref.read(shortsMuteProvider);
       _controller?.setVolume(isMuted ? 0.0 : 1.0);
       _controller?.play();
+      final feed = ref.read(shortsFeedProvider).asData?.value;
+      if (feed != null && _currentIndex < feed.length) {
+        _startProgressSaveTimer(feed[_currentIndex]);
+      }
       WakelockPlus.enable();
     }
   }
@@ -122,9 +129,12 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
+      _progressSaveTimer?.cancel();
       _saveProgress();
       _controller?.pause();
       _controller?.setVolume(0.0);
+      _preloadedController?.pause();
+      _preloadedController?.setVolume(0.0);
       WakelockPlus.disable();
     } else if (state == AppLifecycleState.resumed) {
       final isShortsActive = ref.read(isShortsActiveProvider);
@@ -134,6 +144,10 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
         final isMuted = ref.read(shortsMuteProvider);
         _controller?.setVolume(isMuted ? 0.0 : 1.0);
         _controller?.play();
+        final feed = ref.read(shortsFeedProvider).asData?.value;
+        if (feed != null && _currentIndex < feed.length) {
+          _startProgressSaveTimer(feed[_currentIndex]);
+        }
         WakelockPlus.enable();
       }
     }
@@ -152,6 +166,9 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
         });
       }
     }
+    final isShortsActive = ref.read(isShortsActiveProvider);
+    if (!isShortsActive) return;
+
     if (_controller == null &&
         feed.isNotEmpty &&
         _playbackState != PlayerPlaybackState.error) {
@@ -161,6 +178,7 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
 
   Future<void> _initializeCurrentShort(List<ShortsItem> feed) async {
     if (_currentIndex < 0 || _currentIndex >= feed.length) return;
+    if (!ref.read(isShortsActiveProvider)) return;
 
     final item = feed[_currentIndex];
     final isMuted = ref.read(shortsMuteProvider);
@@ -291,6 +309,12 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
 
+    if (!ref.read(isShortsActiveProvider)) {
+      _controller?.pause();
+      _controller?.setVolume(0.0);
+      return;
+    }
+
     final duration = controller.value.duration;
     final position = controller.value.position;
 
@@ -332,6 +356,8 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
   }
 
   void _saveProgress({ShortsItem? item, bool markCompleted = false}) {
+    if (!ref.read(isShortsActiveProvider)) return;
+
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
 
@@ -450,16 +476,26 @@ class _ShortsScreenState extends ConsumerState<ShortsScreen>
   Widget build(BuildContext context) {
     ref.listen<bool>(isShortsActiveProvider, (prev, isActive) {
       if (!isActive) {
+        _progressSaveTimer?.cancel();
         _controller?.pause();
         _controller?.setVolume(0.0);
+        _preloadedController?.pause();
+        _preloadedController?.setVolume(0.0);
         WakelockPlus.disable();
       } else {
-        if (_playbackState != PlayerPlaybackState.paused &&
-            _controller != null) {
-          final isMuted = ref.read(shortsMuteProvider);
-          _controller?.setVolume(isMuted ? 0.0 : 1.0);
-          _controller?.play();
-          WakelockPlus.enable();
+        final feed = ref.read(shortsFeedProvider).asData?.value;
+        if (feed != null && feed.isNotEmpty) {
+          if (_controller == null) {
+            _initializeCurrentShort(feed);
+          } else if (_playbackState != PlayerPlaybackState.paused) {
+            final isMuted = ref.read(shortsMuteProvider);
+            _controller?.setVolume(isMuted ? 0.0 : 1.0);
+            _controller?.play();
+            if (_currentIndex < feed.length) {
+              _startProgressSaveTimer(feed[_currentIndex]);
+            }
+            WakelockPlus.enable();
+          }
         }
       }
     });

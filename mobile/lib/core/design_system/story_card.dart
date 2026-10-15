@@ -424,10 +424,10 @@ class _StoryCardState extends State<StoryCard>
           height: h,
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: tokens.surfaceElevated,
+            color: const Color(0xFF141416),
             borderRadius: BorderRadius.circular(tokens.radiusMd),
             border: Border.all(
-              color: tokens.border.withValues(alpha: 0.6),
+              color: Colors.white.withValues(alpha: 0.08),
               width: 1,
             ),
             boxShadow: tokens.softShadow,

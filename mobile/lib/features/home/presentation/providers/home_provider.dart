@@ -21,32 +21,76 @@ class HomeFeedData {
 final homeFeedProvider = FutureProvider<HomeFeedData>((ref) async {
   final storyRepo = ref.read(storyRepositoryProvider);
 
-  // Load both master catalog and continue watching together using Future.wait
-  final catalogFuture = ref.watch(masterCatalogProvider.future).catchError((_) {
-    return storyRepo.getDemoStories();
-  });
-  final historyFuture = ref.watch(continueWatchingProvider.future).catchError((_) {
-    return <ContinueWatchingItem>[];
-  });
+  // Watch masterCatalogProvider and continueWatchingProvider reactively
+  final catalogAsync = ref.watch(masterCatalogProvider);
+  final continueWatchingAsync = ref.watch(continueWatchingProvider);
 
-  final results = await Future.wait([catalogFuture, historyFuture]);
-  final catalog = results[0] as List<StoryModel>;
-  final continueWatching = results[1] as List<ContinueWatchingItem>;
+  List<StoryModel> list;
+  if (catalogAsync.hasValue && catalogAsync.value!.isNotEmpty) {
+    list = catalogAsync.value!;
+  } else if (catalogAsync.isLoading) {
+    try {
+      final streamResult = await ref.watch(masterCatalogProvider.future);
+      list = streamResult.isNotEmpty ? streamResult : storyRepo.getDemoStories();
+    } catch (_) {
+      list = storyRepo.getDemoStories();
+    }
+  } else {
+    list = storyRepo.getDemoStories();
+  }
 
-  final list = catalog.isNotEmpty ? catalog : storyRepo.getDemoStories();
+  final continueWatching = continueWatchingAsync.value ?? <ContinueWatchingItem>[];
 
-  final trending = list.where((s) => s.isTrending).take(5).toList();
-  final heroStories = trending.isNotEmpty ? trending : list.take(5).toList();
+  // 1. Hero stories (Featured in Hero Carousel)
+  // When an admin flags stories with "Feature in Hero Carousel (Popular)",
+  // exactly those stories should appear in the Hero Carousel slider!
+  final flaggedHero = list.where((s) => s.isPopular).toList();
+  List<StoryModel> heroStories;
+  if (flaggedHero.isNotEmpty) {
+    heroStories = flaggedHero;
+  } else {
+    // Fallback ONLY when zero stories have been flagged by the admin
+    final trending = list.where((s) => s.isTrending).toList();
+    heroStories = trending.isNotEmpty ? trending : list;
+  }
 
-  final sorted = List<StoryModel>.from(list);
-  sorted.sort((a, b) {
+  // 2. Top 10 Ranked stories (Prioritize isTopTen, then highest popularity score, up to 10)
+  final topTen = <StoryModel>[];
+  for (final s in list.where((s) => s.isTopTen)) {
+    if (topTen.length >= 10) break;
+    if (!topTen.any((item) => item.id == s.id)) {
+      topTen.add(s);
+    }
+  }
+  final sortedByScore = List<StoryModel>.from(list);
+  sortedByScore.sort((a, b) {
     final double scoreA = a.views + (a.rating * 100);
     final double scoreB = b.views + (b.rating * 100);
     return scoreB.compareTo(scoreA);
   });
-  final topTen = sorted.take(10).toList();
+  for (final s in sortedByScore) {
+    if (topTen.length >= 10) break;
+    if (!topTen.any((item) => item.id == s.id)) {
+      topTen.add(s);
+    }
+  }
 
-  final newArrivals = list.take(10).toList();
+  // 3. New Arrivals (Prioritize isNew, then newest by date, up to 10)
+  final newArrivals = <StoryModel>[];
+  for (final s in list.where((s) => s.isNew)) {
+    if (newArrivals.length >= 10) break;
+    if (!newArrivals.any((item) => item.id == s.id)) {
+      newArrivals.add(s);
+    }
+  }
+  final sortedByDate = List<StoryModel>.from(list);
+  sortedByDate.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+  for (final s in sortedByDate) {
+    if (newArrivals.length >= 10) break;
+    if (!newArrivals.any((item) => item.id == s.id)) {
+      newArrivals.add(s);
+    }
+  }
 
   return HomeFeedData(
     heroStories: heroStories,

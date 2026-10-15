@@ -1,0 +1,421 @@
+const admin = require('firebase-admin');
+const fs = require('fs');
+const path = require('path');
+
+// Initialize Firebase Admin with Service Account
+const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.SERVICE_ACCOUNT_KEY_PATH || path.resolve(__dirname, '../../../serviceAccountKey.json');
+
+if (!fs.existsSync(serviceAccountPath)) {
+  console.error(`Service account key not found. Please set GOOGLE_APPLICATION_CREDENTIALS or place serviceAccountKey.json.`);
+  process.exit(1);
+}
+
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: serviceAccount.project_id || 'storyverse-465bd'
+  });
+}
+
+const db = admin.firestore();
+
+// Video URLs (Reliable public-domain MP4s for all devices & web)
+const SAMPLE_VIDEOS = [
+  'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
+  'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+  'https://raw.githubusercontent.com/mediaelement/mediaelement-files/master/big_buck_bunny.mp4',
+  'https://vjs.zencdn.net/v/oceans.mp4',
+  'https://cdn.plyr.io/static/demo/View_From_A_Blue_Moon_Trailer-576p.mp4'
+];
+
+const DEMO_STORIES = [
+  {
+    id: 'demo_story_romance',
+    title: 'Prem Ki Dastaan',
+    description: 'Ek anokhi prem kahani jo waqt ki har deewar ko tod deti hai.',
+    fullDescription: 'Sameer aur Riya ki kahani jo college ke purane library se shuru hokar shahar ke sabse bade faisle tak pahunchti hai. Jab do alag-alag duniya ke log ek dusre ke sapno me sahara dhoondte hain, toh shuru hoti hai ek aisi dastaan jo na sirf unhe balki unke parivaaron ko bhi badal kar rakh deti hai.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'romance',
+    categoryId: 'romance',
+    language: 'Hindi',
+    author: 'Kabir Sharma',
+    tags: ['romance', 'love', 'drama', 'hindi', 'college', 'emotional'],
+    status: 'published',
+    isPublished: true,
+    isTrending: true,
+    isNew: false,
+    isPopular: true,
+    isTopTen: true,
+    views: 48200,
+    rating: 4.9,
+    totalDuration: 1540,
+    episodes: [
+      { id: 'ep_romance_1', episodeNumber: 1, title: 'Pehli Mulaqaat', description: 'College library ki shaam jahan Sameer aur Riya ke sapne pehli baar takraate hain.', duration: 310, views: 12500, thumbnailUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_romance_2', episodeNumber: 2, title: 'Unkahi Baatein', description: 'Barsaat ki ek dophar me unke dil ke gehre raaz saamne aate hain.', duration: 295, views: 10400, thumbnailUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_romance_3', episodeNumber: 3, title: 'Faaslo Ka Mod', description: 'Parivaar ke faisle unhe do alag shehron me bhej dete hain.', duration: 320, views: 8900, thumbnailUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_romance_4', episodeNumber: 4, title: 'Purani Diary', description: 'Ek purani diary jo unke bich ke bhed ko mita sakti hai.', duration: 285, views: 7300, thumbnailUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_romance_5', episodeNumber: 5, title: 'Hamesha Ke Liye', description: 'Station par aakhri second me kiya gaya ek faisla jo zindagi badal deta hai.', duration: 330, views: 9100, thumbnailUrl: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_thriller',
+    title: 'The Silent Room',
+    description: 'Inside room 404, the walls record every whisper and delete every person.',
+    fullDescription: 'Detective Marcus thought it was a routine missing person inquiry. But when all evidence leads to an abandoned archive facility, every step closer reveals a conspiracy designed to erase the very concept of identity.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'thriller',
+    categoryId: 'thriller',
+    language: 'English',
+    author: 'Elena Vance',
+    tags: ['thriller', 'mystery', 'detective', 'english', 'suspense', 'crime'],
+    status: 'published',
+    isPublished: true,
+    isTrending: true,
+    isNew: false,
+    isPopular: true,
+    isTopTen: true,
+    views: 52400,
+    rating: 4.9,
+    totalDuration: 1720,
+    episodes: [
+      { id: 'ep_thriller_1', episodeNumber: 1, title: 'The Sealed Door', description: 'Marcus crosses the caution line into the soundproof wing.', duration: 335, views: 14200, thumbnailUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_thriller_2', episodeNumber: 2, title: 'The Missing Voice', description: 'An audio reel plays backward with the detective’s own name on it.', duration: 345, views: 11900, thumbnailUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_thriller_3', episodeNumber: 3, title: 'The Hidden Floor', description: 'The blueprint reveals a sub-basement not registered in city records.', duration: 350, views: 10100, thumbnailUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_thriller_4', episodeNumber: 4, title: 'The Betrayal', description: 'His trusted partner delivers an ultimatum under gunpoint.', duration: 340, views: 8800, thumbnailUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_thriller_5', episodeNumber: 5, title: 'The Final Protocol', description: 'A choice between preserving the truth or surviving the night.', duration: 350, views: 7400, thumbnailUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_scifi',
+    title: 'Chronos Protocol',
+    description: 'When time fractures in 2087, one rogue pilot must reverse the countdown.',
+    fullDescription: 'Earth orbital stations detect quantum rifts multiplying across the solar system. Captain Ryan Hayes executes an unauthorized jump beyond the event horizon, where yesterday and tomorrow exist in the same corridor.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'sci-fi',
+    categoryId: 'sci-fi',
+    language: 'English',
+    author: 'Dr. Arthur Sterling',
+    tags: ['sci-fi', 'space', 'time-travel', 'english', 'future', 'technology'],
+    status: 'published',
+    isPublished: true,
+    isTrending: true,
+    isNew: true,
+    isPopular: true,
+    isTopTen: true,
+    views: 43100,
+    rating: 4.8,
+    totalDuration: 1680,
+    episodes: [
+      { id: 'ep_scifi_1', episodeNumber: 1, title: 'Temporal Anomaly', description: 'The warp engine begins counting backward in negative seconds.', duration: 320, views: 11800, thumbnailUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_scifi_2', episodeNumber: 2, title: 'The Echo Transmission', description: 'Ryan receives a radio warning from his future self.', duration: 340, views: 9900, thumbnailUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_scifi_3', episodeNumber: 3, title: 'Fractured Reality', description: 'Two timelines collide inside the station docking bay.', duration: 335, views: 8200, thumbnailUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_scifi_4', episodeNumber: 4, title: 'The Core Overload', description: 'A manual override is the only way to seal the dimensional rift.', duration: 345, views: 7100, thumbnailUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_scifi_5', episodeNumber: 5, title: 'The New Tomorrow', description: 'A rebooted timeline awakens with one unforgettable secret.', duration: 340, views: 6100, thumbnailUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_horror',
+    title: 'Andheri Haveli',
+    description: 'Jo ek baar is haveli me kadam rakhta hai, uski aawaz hamesha ke liye kho jaati hai.',
+    fullDescription: 'Pahadon ke bich basi ek 200 saal purani haveli jahan har raat barah baje ghanti bajti hai bina kisi ke chhue. Vikram jab apne purkhe ki haveli ki sachai jaan ne gaon pahunchta hai, toh use pata chalta hai ki wahan koi aisi aatma rehti hai jo sirf badla chahti hai.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'horror',
+    categoryId: 'horror',
+    language: 'Hindi',
+    author: 'Aditya Roy',
+    tags: ['horror', 'ghost', 'mansion', 'hindi', 'mystery', 'dark'],
+    status: 'published',
+    isPublished: true,
+    isTrending: true,
+    isNew: false,
+    isPopular: true,
+    isTopTen: true,
+    views: 39500,
+    rating: 4.7,
+    totalDuration: 1610,
+    episodes: [
+      { id: 'ep_horror_1', episodeNumber: 1, title: 'Haveli Ka Darwaza', description: 'Vikram haveli ke band darwaze ko pehli baar kholta hai aur ek thandi hawa mehsoos karta hai.', duration: 315, views: 10800, thumbnailUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_horror_2', episodeNumber: 2, title: 'Aadhi Raat Ki Ghanti', description: 'Bina kisi taar ke haveli ke gumbad ki ghanti aadhi raat ko apne aap bajne lagti hai.', duration: 340, views: 9200, thumbnailUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_horror_3', episodeNumber: 3, title: 'Aaine Ka Saaya', description: 'Ek purane aaine me Vikram ko apna chehra nahi balki kisi aur ka chehra dikhai deta hai.', duration: 300, views: 7600, thumbnailUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_horror_4', episodeNumber: 4, title: 'Tehkhaane Ka Raaz', description: 'Zameen ke neeche bane gupt tehkhaane me 100 saal purani chithhiyan milti hain.', duration: 325, views: 6400, thumbnailUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_horror_5', episodeNumber: 5, title: 'Aakhri Mukti', description: 'Haveli ke aakhri kona me aatma ko shanti dilaane ke liye ek antim yagya hota hai.', duration: 330, views: 5500, thumbnailUrl: 'https://images.unsplash.com/photo-1509248961158-e54f6934749c?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_action',
+    title: 'Kutch Na Ranveer',
+    description: 'Seema par dushmano ko dhool chatavto Ranveer, jeni himmat aakho desh vakhane chhe.',
+    fullDescription: 'Gujarat ni seema par ek anokho senani Ranveer, je border par aavta sankat no samno eklo kare chhe. Deshbhakti, saahas ane anokhi yuddh neeti thi bharpur aakhi dastaan.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'action',
+    categoryId: 'action',
+    language: 'Gujarati',
+    author: 'Jigar Patel',
+    tags: ['action', 'patriotism', 'gujarati', 'brave', 'warrior', 'army'],
+    status: 'published',
+    isPublished: true,
+    isTrending: true,
+    isNew: false,
+    isPopular: true,
+    isTopTen: true,
+    views: 37200,
+    rating: 4.8,
+    totalDuration: 1585,
+    episodes: [
+      { id: 'ep_action_1', episodeNumber: 1, title: 'Ran Ni Raat', description: 'Kutch ni ret ma achanak aavti ghuspethe border par alert jahir karyo.', duration: 310, views: 9800, thumbnailUrl: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_action_2', episodeNumber: 2, title: 'Chhupe Chhaya', description: 'Dushman ni chal samjhi ne Ranveer eklo aagal vadhe chhe.', duration: 320, views: 8900, thumbnailUrl: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_action_3', episodeNumber: 3, title: 'Samne Ladaai', description: 'Post 42 par aakri ladaai sharu thay chhe ane ammunition ghati jaay chhe.', duration: 315, views: 8100, thumbnailUrl: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_action_4', episodeNumber: 4, title: 'Chakravyuh', description: 'Dushman ghutaniya teki deve teva plan sathe gherabandi thay chhe.', duration: 325, views: 5800, thumbnailUrl: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_action_5', episodeNumber: 5, title: 'Desh No Tirango', description: 'Ranveer dushman ne pachhadine tirango lehrato kare chhe.', duration: 320, views: 4600, thumbnailUrl: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_drama',
+    title: 'Pita Ki Pagdi',
+    description: 'Ek aam parivaar ki shaan aur bacchon ke sapno ke bich ki dastaan.',
+    fullDescription: 'Pandit Ramcharan ne hamesha imandari se padhaya aur parivaar chalaya. Jab unke bete ko corporate duniya me faisla lena padta hai ki wo baap ke asoolon par chale ya bheed me kho jaye, tab shuru hoti hai ek aisi jang jo har dil ko chhoo leti hai.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'drama',
+    categoryId: 'drama',
+    language: 'Hindi',
+    author: 'Premchand (Modern Adapt.)',
+    tags: ['drama', 'family', 'father', 'hindi', 'values', 'emotions'],
+    status: 'published',
+    isPublished: true,
+    isTrending: true,
+    isNew: true,
+    isPopular: false,
+    isTopTen: true,
+    views: 34800,
+    rating: 4.7,
+    totalDuration: 1450,
+    episodes: [
+      { id: 'ep_drama_1', episodeNumber: 1, title: 'Master Ji Ki Cycle', description: 'Ramcharan ji ki purani cycle aur unke chote makan ki subah.', duration: 280, views: 9200, thumbnailUrl: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_drama_2', episodeNumber: 2, title: 'Bada Shahar', description: 'Bete ka selection shehar ki sabse badi company me ho jata hai.', duration: 295, views: 8100, thumbnailUrl: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_drama_3', episodeNumber: 3, title: 'Shart', description: 'Boss ek aisi file sign karne ko kehta hai jo ghalat hai.', duration: 290, views: 6700, thumbnailUrl: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_drama_4', episodeNumber: 4, title: 'Pita Ki Nazar', description: 'Gaon aakar jab beta baap ki aankhon me dekhta hai toh jawab mil jata hai.', duration: 285, views: 5900, thumbnailUrl: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_drama_5', episodeNumber: 5, title: 'Sach Ki Jeet', description: 'Resign karke jab beta wapas aata hai toh pita gale lagate hain.', duration: 300, views: 4900, thumbnailUrl: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_comedy',
+    title: 'Haso Ane Hasavo',
+    description: 'Ahmedabad ni pol ma rehta do mitro ane emni anokhi jugad ni vat.',
+    fullDescription: 'Jignesh ane Bakul, be mitro je koi pan kaam seedhe reete nathi karta. Emni aakhi society ma thaye che hasya no dhabakaro jab ek divas emne lottery lage che parantu ticket khoi jaay che!',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'comedy',
+    categoryId: 'comedy',
+    language: 'Gujarati',
+    author: 'Harish Mehta',
+    tags: ['comedy', 'fun', 'gujarati', 'laughter', 'friendship', 'light-hearted'],
+    status: 'published',
+    isPublished: true,
+    isTrending: false,
+    isNew: true,
+    isPopular: false,
+    isTopTen: true,
+    views: 29800,
+    rating: 4.8,
+    totalDuration: 1390,
+    episodes: [
+      { id: 'ep_comedy_1', episodeNumber: 1, title: 'Pol Ma Dhamal', description: 'Chawl ni subah ane Jignesh no nava idea thi aakhi society pareshan.', duration: 260, views: 8200, thumbnailUrl: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_comedy_2', episodeNumber: 2, title: 'Lottery Ni Vaat', description: 'Be lakh ni lottery laagi gay che pan ticket kya muki te yaad nathi!', duration: 280, views: 7400, thumbnailUrl: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_comedy_3', episodeNumber: 3, title: 'Mehmaan Ni Entry', description: 'Achanak aavel saga maate banavelo plan ulto pade che.', duration: 275, views: 6100, thumbnailUrl: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_comedy_4', episodeNumber: 4, title: 'Nakli Heera', description: 'Ek plastic na heera ne sacho samji ne aakho divas police no bhay.', duration: 285, views: 4900, thumbnailUrl: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_comedy_5', episodeNumber: 5, title: 'Sacho Haso', description: 'Aakhe badhu saaru thay che ane badha hasi hasi ne lotpot!', duration: 290, views: 3200, thumbnailUrl: 'https://images.unsplash.com/photo-1514306191717-452ec28c7814?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_mystery',
+    title: 'The Clockwork Alibi',
+    description: 'Every suspect has an ironclad clockwork alibi until the hour hand strikes thirteen.',
+    fullDescription: 'In Victorian London, a renowned horologist is found dead inside a vault locked from within. Inspector Hastings uncovers an ingenious mechanism designed to bend time itself and construct an unshakeable defense.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'mystery',
+    categoryId: 'mystery',
+    language: 'English',
+    author: 'Clara Pendelton',
+    tags: ['mystery', 'whodunit', 'clockwork', 'english', 'detective', 'puzzle'],
+    status: 'published',
+    isPublished: true,
+    isTrending: false,
+    isNew: true,
+    isPopular: false,
+    isTopTen: true,
+    views: 28900,
+    rating: 4.6,
+    totalDuration: 1530,
+    episodes: [
+      { id: 'ep_mystery_1', episodeNumber: 1, title: 'Stopped at Midnight', description: 'The pendulum halts at precisely 12:00:00 without friction.', duration: 300, views: 8100, thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_mystery_2', episodeNumber: 2, title: 'The Broken Gear', description: 'A brass cogwheel found in the fireplace matches no catalogued clock.', duration: 310, views: 7200, thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_mystery_3', episodeNumber: 3, title: 'The Apprentice', description: 'An interrogation reveals two watches running with four-minute offsets.', duration: 305, views: 5900, thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_mystery_4', episodeNumber: 4, title: 'The Second Key', description: 'The chime mechanism activates a hidden compartment in the mantelpiece.', duration: 315, views: 4800, thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_mystery_5', episodeNumber: 5, title: 'The Verdict of Time', description: 'Hastings demonstrates the flaw in the perpetrator’s synchronized alibi.', duration: 300, views: 2900, thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_adventure',
+    title: 'Kille Raigad Chi Mohim',
+    description: 'Sahyadrichya kadya-kopryat laplelya aitihasik khajinyacha romanchak shodh.',
+    fullDescription: 'Char tarunanche Sahyadri madhe trekking kartana Shivkalin gupt rastyacha shodlagto. Sahas, nisargachya aavhananche samna ani itihasacha dhabakto aavaj ya katha madhun jivant hoto.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'adventure',
+    categoryId: 'adventure',
+    language: 'Marathi',
+    author: 'Sanjay Deshmukh',
+    tags: ['adventure', 'trekking', 'marathi', 'mountains', 'history', 'fort'],
+    status: 'published',
+    isPublished: true,
+    isTrending: false,
+    isNew: true,
+    isPopular: false,
+    isTopTen: true,
+    views: 25400,
+    rating: 4.7,
+    totalDuration: 1420,
+    episodes: [
+      { id: 'ep_adventure_1', episodeNumber: 1, title: 'Nakashyacha Shodh', description: 'Puranya granthalayat sapadlela hathachya shailitil nakasha.', duration: 275, views: 7600, thumbnailUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_adventure_2', episodeNumber: 2, title: 'Dongrachi Vaat', description: 'Pavsalyatil Sahyadrichi ghanadat jhadpatti ani darya.', duration: 285, views: 6500, thumbnailUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_adventure_3', episodeNumber: 3, title: 'Gupit Ghaat', description: 'Achanak sapadleli gupt bhuinyarachi payri.', duration: 290, views: 5200, thumbnailUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_adventure_4', episodeNumber: 4, title: 'Sankat Ani Sahas', description: 'Rope tutlyavar ekmekanna madat karun vachavnyachi chhadphad.', duration: 280, views: 3900, thumbnailUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_adventure_5', episodeNumber: 5, title: 'Shikharavar Tiranga', description: 'Killyachya uchha toka var pohochlyacha abhimanaspad kshan.', duration: 290, views: 2200, thumbnailUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  },
+  {
+    id: 'demo_story_fantasy',
+    title: 'Mayavi Talav',
+    description: 'Jyachya paanyat bhavishya diste tya talavachi jadui dastaan.',
+    fullDescription: 'Chandrapur javalchya daryat ek aasa talav ahe jithe pournimechya ratri chamatkar ghadto. Aranya ani tyache mitra tya talavachya sodhyat nighatat, jithe tyanna mayavi shaktincha samna karava lagto.',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&auto=format&fit=crop&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200&auto=format&fit=crop&q=80',
+    genreId: 'fantasy',
+    categoryId: 'fantasy',
+    language: 'Marathi',
+    author: 'Pooja Kulkarni',
+    tags: ['fantasy', 'magic', 'marathi', 'mythology', 'enchanted', 'lake'],
+    status: 'published',
+    isPublished: true,
+    isTrending: false,
+    isNew: true,
+    isPopular: false,
+    isTopTen: true,
+    views: 23600,
+    rating: 4.8,
+    totalDuration: 1470,
+    episodes: [
+      { id: 'ep_fantasy_1', episodeNumber: 1, title: 'Jungle Cha Marg', description: 'Ghanadat aranyat chamknare paane ani anokha aavaj.', duration: 290, views: 7100, thumbnailUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[0] },
+      { id: 'ep_fantasy_2', episodeNumber: 2, title: 'Pournimechi Ratra', description: 'Talavachya panyat nakshatra thirkana distat.', duration: 300, views: 6000, thumbnailUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[1] },
+      { id: 'ep_fantasy_3', episodeNumber: 3, title: 'Jaadui Mani', description: 'Paanya khali chamknara ek anokha ratna sapadte.', duration: 285, views: 4800, thumbnailUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[2] },
+      { id: 'ep_fantasy_4', episodeNumber: 4, title: 'Rakshasacha Hulla', description: 'Jadui manila rakhanara aranya-shakti samor yete.', duration: 295, views: 3500, thumbnailUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[3] },
+      { id: 'ep_fantasy_5', episodeNumber: 5, title: 'Vijayi Prakash', description: 'Mitranchya shuddh manane shakti prasanna hote.', duration: 300, views: 2200, thumbnailUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80', videoUrl: SAMPLE_VIDEOS[4] }
+    ]
+  }
+];
+
+async function updateCatalog() {
+  console.log('===============================================================');
+  console.log('STORYVERSE CATALOG UPDATE & SEEDING SCRIPT');
+  console.log(`Connected to Project: ${serviceAccount.project_id || 'storyverse-465bd'}`);
+  console.log(`Total Stories to Update: ${DEMO_STORIES.length}`);
+  console.log('===============================================================\n');
+
+  let storiesUpdated = 0;
+  let episodesSynced = 0;
+
+  // Stagger createdAt across recent days so that sorting by date works cleanly
+  const baseTime = Date.now();
+
+  for (let index = 0; index < DEMO_STORIES.length; index++) {
+    const story = DEMO_STORIES[index];
+    const storyRef = db.collection('stories').doc(story.id);
+
+    // Stagger dates: newest first
+    const storyCreatedDate = new Date(baseTime - (index * 86400000 * 2)); // 2 days interval
+
+    const storyData = {
+      id: story.id,
+      title: story.title,
+      description: story.description,
+      fullDescription: story.fullDescription,
+      thumbnailUrl: story.thumbnailUrl,
+      bannerUrl: story.bannerUrl,
+      genreId: story.genreId.toLowerCase(),
+      categoryId: story.categoryId.toLowerCase(),
+      language: story.language,
+      author: story.author,
+      tags: story.tags,
+      status: 'published',
+      isPublished: true,
+      isTrending: story.isTrending === true,
+      isNew: story.isNew === true,
+      isNewArrival: story.isNew === true,
+      isPopular: story.isPopular === true,
+      isHero: story.isPopular === true,
+      isTopTen: story.isTopTen === true,
+      isDemo: true,
+      views: story.views,
+      totalViews: story.views,
+      rating: story.rating,
+      episodeCount: 5,
+      totalEpisodes: 5,
+      ageCategory: 'all-ages',
+      totalDuration: story.totalDuration,
+      createdAt: admin.firestore.Timestamp.fromDate(storyCreatedDate),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    await storyRef.set(storyData, { merge: true });
+    storiesUpdated++;
+    console.log(`[UPDATED STORY] ${story.id} -> "${story.title}"`);
+    console.log(`   └─ Category: ${story.categoryId} | Genre: ${story.genreId} | Lang: ${story.language}`);
+    console.log(`   └─ Trending: ${story.isTrending} | New: ${story.isNew} | Top10: ${story.isTopTen} | Hero: ${story.isPopular}`);
+
+    // Update 5 Episodes for this story
+    for (const ep of story.episodes) {
+      const epRef = storyRef.collection('episodes').doc(ep.id);
+      const epData = {
+        storyId: story.id,
+        episodeNumber: ep.episodeNumber,
+        title: ep.title,
+        description: ep.description,
+        videoUrl: ep.videoUrl,
+        thumbnailUrl: ep.thumbnailUrl,
+        duration: ep.duration,
+        views: ep.views,
+        status: 'published',
+        isPublished: true,
+        mediaType: 'video',
+        sourceType: 'external',
+        storagePath: '',
+        createdAt: admin.firestore.Timestamp.fromDate(storyCreatedDate),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await epRef.set(epData, { merge: true });
+      episodesSynced++;
+    }
+  }
+
+  console.log('\n===============================================================');
+  console.log(`CATALOG UPDATE COMPLETE!`);
+  console.log(`Total Stories Updated: ${storiesUpdated}`);
+  console.log(`Total Episodes Synced:  ${episodesSynced}`);
+  console.log('===============================================================');
+  process.exit(0);
+}
+
+updateCatalog().catch(err => {
+  console.error('Update failed:', err);
+  process.exit(1);
+});

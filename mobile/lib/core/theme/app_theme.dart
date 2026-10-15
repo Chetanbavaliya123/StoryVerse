@@ -6,10 +6,16 @@ import 'app_typography.dart';
 class AppTheme {
   static ThemeData getThemeByName(String themeName) {
     switch (themeName) {
-      case 'Cinematic Charcoal':
-        return cinematicCharcoalTheme;
+      case 'Cyberpunk Neon':
+        return cyberpunkNeonTheme;
+      case 'Emerald Obsidian':
+        return emeraldObsidianTheme;
+      case 'Cosmic Amethyst':
+        return cosmicAmethystTheme;
       case 'Dark Crimson':
         return darkCrimsonTheme;
+      case 'Cinematic Charcoal':
+        return cinematicCharcoalTheme;
       case 'OLED Pure Black':
       default:
         return oledPureBlackTheme;
@@ -21,11 +27,44 @@ class AppTheme {
   static ThemeData get oledPureBlackTheme {
     return _createTheme(
       background: const Color(0xFF000000),
-      secondaryBackground: const Color(0xFF121212),
-      surface: const Color(0xFF1A1A1A),
+      secondaryBackground: const Color(0xFF0D0D0D),
+      surface: const Color(0xFF161616),
       accent: const Color(0xFFE53935),
       border: const Color(0xFF262626),
       tokens: StoryVerseThemeTokens.oled,
+    );
+  }
+
+  static ThemeData get cyberpunkNeonTheme {
+    return _createTheme(
+      background: const Color(0xFF070814),
+      secondaryBackground: const Color(0xFF0F1226),
+      surface: const Color(0xFF181C38),
+      accent: const Color(0xFF00E5FF),
+      border: const Color(0xFF22294E),
+      tokens: StoryVerseThemeTokens.cyberpunk,
+    );
+  }
+
+  static ThemeData get emeraldObsidianTheme {
+    return _createTheme(
+      background: const Color(0xFF050F0A),
+      secondaryBackground: const Color(0xFF0C1D14),
+      surface: const Color(0xFF132B1E),
+      accent: const Color(0xFF00E676),
+      border: const Color(0xFF1D3B2B),
+      tokens: StoryVerseThemeTokens.emerald,
+    );
+  }
+
+  static ThemeData get cosmicAmethystTheme {
+    return _createTheme(
+      background: const Color(0xFF0A0612),
+      secondaryBackground: const Color(0xFF150D24),
+      surface: const Color(0xFF201438),
+      accent: const Color(0xFFA855F7),
+      border: const Color(0xFF2E1C4E),
+      tokens: StoryVerseThemeTokens.amethyst,
     );
   }
 
@@ -86,6 +125,7 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: background,
         elevation: 0,
+        scrolledUnderElevation: 0,
         iconTheme: const IconThemeData(color: AppColors.primaryText),
         titleTextStyle: AppTypography.titleLarge,
       ),

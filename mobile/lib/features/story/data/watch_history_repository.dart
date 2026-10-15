@@ -96,14 +96,13 @@ class WatchHistoryRepository {
           .doc(uid)
           .collection('watchHistory')
           .orderBy('lastWatchedAt', descending: true)
-          .limit(50)
+          .limit(100)
           .get()
           .timeout(const Duration(seconds: 5));
 
       return snapshot.docs
           .map((doc) => WatchHistoryModel.fromFirestore(doc))
           .where((model) => !model.isCompleted && model.percentage > 0)
-          .take(10)
           .toList();
     } catch (e) {
       debugPrint('Failed to get continue watching: $e');
@@ -122,7 +121,7 @@ class WatchHistoryRepository {
           .doc(uid)
           .collection('watchHistory')
           .orderBy('lastWatchedAt', descending: true)
-          .limit(50)
+          .limit(100)
           .get()
           .timeout(const Duration(seconds: 5));
 

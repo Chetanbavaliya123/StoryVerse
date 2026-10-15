@@ -69,8 +69,8 @@ class ShortsRepository {
           // Shuffle stories to ensure varied discovery across genres and languages
           eligibleStories.shuffle(_random);
 
-          // Sample stories and query their episodes subcollections in parallel
-          final storiesToQuery = eligibleStories.take(batchSize).toList();
+          // Query multiple stories to collect a rich candidate pool of episodes
+          final storiesToQuery = eligibleStories.take(15).toList();
 
           final episodeFutures = storiesToQuery.map((story) async {
             try {
@@ -91,34 +91,40 @@ class ShortsRepository {
                       !VideoUrlHelper.isYouTube(ep.videoUrl))
                   .toList();
 
-              if (eligibleEpisodes.isEmpty) return null;
+              if (eligibleEpisodes.isEmpty) return <ShortsItem>[];
 
-              eligibleEpisodes.shuffle(_random);
-
-              // Find an episode not seen yet in this session
-              EpisodeModel? selectedEpisode;
-              for (final ep in eligibleEpisodes) {
-                final key = '${story.id}_${ep.id}';
-                if (!_seenEpisodeKeys.contains(key)) {
-                  selectedEpisode = ep;
-                  _seenEpisodeKeys.add(key);
-                  break;
-                }
-              }
-
-              selectedEpisode ??= eligibleEpisodes.first;
-              return ShortsItem(story: story, episode: selectedEpisode);
+              // Include all valid episodes from this story as candidates
+              return eligibleEpisodes
+                  .map((ep) => ShortsItem(story: story, episode: ep))
+                  .toList();
             } catch (_) {
-              return null;
+              return <ShortsItem>[];
             }
           });
 
           final results = await Future.wait(episodeFutures);
-          final items = results.whereType<ShortsItem>().toList();
+          final allCandidates = results.expand((list) => list).toList();
 
-          if (items.isNotEmpty) {
-            items.shuffle(_random);
-            return items;
+          if (allCandidates.isNotEmpty) {
+            allCandidates.shuffle(_random);
+
+            // Filter unseen episodes in this session
+            var unseen = allCandidates
+                .where((item) => !_seenEpisodeKeys.contains(item.uniqueKey))
+                .toList();
+
+            // If we've seen all or almost all, reset seen cache so user has continuous endless feed
+            if (unseen.isEmpty) {
+              _seenEpisodeKeys.clear();
+              unseen = allCandidates;
+            }
+
+            final batch = unseen.take(batchSize).toList();
+            for (final item in batch) {
+              _seenEpisodeKeys.add(item.uniqueKey);
+            }
+
+            return batch;
           }
         }
       } catch (_) {
@@ -132,13 +138,10 @@ class ShortsRepository {
 
   /// Builds a randomized batch from demo catalog when offline or Firestore empty
   List<ShortsItem> getFallbackShortsBatch(int batchSize) {
-    final items = <ShortsItem>[];
+    final allCandidates = <ShortsItem>[];
     final stories = demoStoryCatalog.where((s) => s.status == 'published').toList();
-    stories.shuffle(_random);
 
     for (final story in stories) {
-      if (items.length >= batchSize) break;
-
       final episodes = demoEpisodesCatalog[story.id] ?? [];
       final validEpisodes = episodes
           .where((ep) =>
@@ -146,24 +149,29 @@ class ShortsRepository {
               !VideoUrlHelper.isYouTube(ep.videoUrl))
           .toList();
 
-      if (validEpisodes.isEmpty) continue;
-      validEpisodes.shuffle(_random);
-
-      EpisodeModel? chosenEp;
       for (final ep in validEpisodes) {
-        final key = '${story.id}_${ep.id}';
-        if (!_seenEpisodeKeys.contains(key)) {
-          chosenEp = ep;
-          _seenEpisodeKeys.add(key);
-          break;
-        }
+        allCandidates.add(ShortsItem(story: story, episode: ep));
       }
-      chosenEp ??= validEpisodes.first;
-
-      items.add(ShortsItem(story: story, episode: chosenEp));
     }
 
-    items.shuffle(_random);
-    return items;
+    if (allCandidates.isEmpty) return [];
+
+    allCandidates.shuffle(_random);
+
+    var unseen = allCandidates
+        .where((item) => !_seenEpisodeKeys.contains(item.uniqueKey))
+        .toList();
+
+    if (unseen.isEmpty) {
+      _seenEpisodeKeys.clear();
+      unseen = allCandidates;
+    }
+
+    final batch = unseen.take(batchSize).toList();
+    for (final item in batch) {
+      _seenEpisodeKeys.add(item.uniqueKey);
+    }
+
+    return batch;
   }
 }

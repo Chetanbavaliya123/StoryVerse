@@ -25,12 +25,27 @@ Thumbs.db
 logs/
 *.log
 
-# Secrets and environment variables
+# Secrets, credentials and environment variables
 .env
 *.env
 .env.*
+*.local
 mobile/lib/firebase_options.dart
 admin/.env
+backend/**/.env*
+*.pem
+*.key
+*.keystore
+*.jks
+*.p12
+*.cer
+*.crt
+*serviceAccount*.json
+serviceAccountKey.json
+credentials.json
+client_secret*.json
+google-services.json
+GoogleService-Info.plist
 
 # Mobile (Flutter) specific additions
 .dart_tool/

@@ -37,6 +37,8 @@ class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean,
   }
 }
 
+import { ToastProvider } from './components/ui/ToastContext.tsx'
+
 function Root() {
   if (!isFirebaseConfigured) {
     return (
@@ -53,7 +55,9 @@ function Root() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <App />
+        <ToastProvider>
+          <App />
+        </ToastProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

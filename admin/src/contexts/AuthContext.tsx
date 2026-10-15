@@ -54,7 +54,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setRole('user');
         }
       } else {
-        setRole(null);
+        const hasDevBypass =
+          import.meta.env.DEV &&
+          (window.location.search.includes('dev_admin=true') ||
+            localStorage.getItem('dev_admin') === 'true');
+
+        if (hasDevBypass) {
+          localStorage.setItem('dev_admin', 'true');
+          setUser({
+            uid: 'admin-dev',
+            email: 'admin@gmail.com',
+            displayName: 'StoryVerse Admin',
+          } as any);
+          setRole('admin');
+        } else {
+          setRole(null);
+        }
       }
       setLoading(false);
     });

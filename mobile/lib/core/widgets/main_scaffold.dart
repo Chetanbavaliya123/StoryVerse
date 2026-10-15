@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/routing/app_router.dart';
+import 'package:storyverse/core/localization/app_localizations.dart';
+import 'package:storyverse/core/localization/locale_provider.dart';
+import 'package:storyverse/core/theme/theme_provider.dart';
 
 class MainScaffold extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -10,6 +14,9 @@ class MainScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appLocaleProvider);
+    ref.watch(appThemeProvider);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final isShorts = navigationShell.currentIndex == 1;
       if (ref.read(isShortsActiveProvider) != isShorts) {
@@ -17,15 +24,37 @@ class MainScaffold extends ConsumerWidget {
       }
     });
 
-    return Scaffold(
-      extendBody: false, // Solid navbar should not overlap body content
-      body: navigationShell,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+
+        // 1. If the active branch navigator has deeper child routes to pop, pop it first
+        final branchNav =
+            getBranchNavigatorKey(navigationShell.currentIndex)?.currentState;
+        if (branchNav != null && branchNav.canPop()) {
+          branchNav.pop();
+          return;
+        }
+
+        // 2. If user is in a non-home tab (Shorts, Premium, My List, Profile), navigate to Home first
+        if (navigationShell.currentIndex != 0) {
+          _goBranch(ref, 0);
+          return;
+        }
+
+        // 3. Genuinely at root Home destination with no previous state: exit app
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
+        extendBody: false, // Solid navbar should not overlap body content
+        body: navigationShell,
       bottomNavigationBar: SafeArea(
         bottom: true,
         top: false,
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF050505), // Matches the dark background
+            color: Theme.of(context).scaffoldBackgroundColor,
             border: Border(
               top: BorderSide(
                 color: Colors.white.withValues(alpha: 0.05),
@@ -42,14 +71,14 @@ class MainScaffold extends ConsumerWidget {
                 _NavItem(
                   activeIcon: Icons.home,
                   inactiveIcon: Icons.home_outlined,
-                  label: 'Home',
+                  label: AppLocalizations.of(context).home,
                   isSelected: navigationShell.currentIndex == 0,
                   onTap: () => _goBranch(ref, 0),
                 ),
                 _NavItem(
                   activeIcon: Icons.play_circle,
                   inactiveIcon: Icons.play_circle_outline,
-                  label: 'Shorts',
+                  label: AppLocalizations.of(context).shorts,
                   isSelected: navigationShell.currentIndex == 1,
                   onTap: () => _goBranch(ref, 1),
                 ),
@@ -63,7 +92,7 @@ class MainScaffold extends ConsumerWidget {
                 _NavItem(
                   activeIcon: Icons.bookmark,
                   inactiveIcon: Icons.bookmark_outline,
-                  label: 'My List',
+                  label: AppLocalizations.of(context).library,
                   isSelected: navigationShell.currentIndex == 3,
                   onTap: () => _goBranch(ref, 3),
                 ),
@@ -71,7 +100,7 @@ class MainScaffold extends ConsumerWidget {
                   activeIcon: Icons.sentiment_satisfied_alt,
                   inactiveIcon: Icons.sentiment_satisfied_alt,
                   isProfile: true,
-                  label: 'Profile',
+                  label: AppLocalizations.of(context).profile,
                   isSelected: navigationShell.currentIndex == 4,
                   onTap: () => _goBranch(ref, 4),
                 ),
@@ -80,8 +109,9 @@ class MainScaffold extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _goBranch(WidgetRef ref, int index) {
     ref.read(isShortsActiveProvider.notifier).state = (index == 1);

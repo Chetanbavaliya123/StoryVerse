@@ -8,6 +8,7 @@ import 'package:storyverse/features/library/presentation/providers/library_provi
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/empty_state.dart';
 import 'package:storyverse/core/widgets/skeleton_loader.dart';
+import 'package:storyverse/core/localization/app_localizations.dart';
 import 'package:storyverse/features/library/data/library_repository.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -112,47 +113,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryAccent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'YOUR COLLECTION',
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 2.0,
-                    color: AppColors.secondaryText,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Library',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
+        scrolledUnderElevation: 0,
+        title: Text(
+          context.loc.library,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
-        toolbarHeight: 90,
+        toolbarHeight: 56,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -181,11 +155,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
                 ),
                 dividerColor: Colors.transparent,
                 splashBorderRadius: BorderRadius.circular(22),
-                tabs: const [
-                  Tab(text: 'Watching'),
-                  Tab(text: 'Favorites'),
-                  Tab(text: 'Saved'),
-                  Tab(text: 'AI Stories'),
+                tabs: [
+                  Tab(text: context.loc.watching),
+                  Tab(text: context.loc.favorites),
+                  Tab(text: context.loc.saved),
+                  Tab(text: context.loc.aiStories),
                 ],
               ),
             ),
@@ -310,7 +284,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 itemCount: visibleItems.length,
                 itemBuilder: (context, index) {
                   final item = visibleItems[index];
@@ -367,7 +341,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
           );
         }
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           itemCount: stories.length,
           itemBuilder: (context, index) {
             final story = stories[index];
@@ -404,7 +378,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
           );
         }
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           itemCount: stories.length,
           itemBuilder: (context, index) {
             final story = stories[index];
@@ -447,7 +421,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
           );
         }
         return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           itemCount: visibleStories.length,
           itemBuilder: (context, index) {
             final story = visibleStories[index];

@@ -2,15 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/features/profile/data/user_repository.dart';
 
+class AppLocaleCodeNotifier extends Notifier<String> {
+  static String? _activeCode;
+
+  @override
+  String build() {
+    if (_activeCode != null) {
+      return _activeCode!;
+    }
+    final profile = ref.watch(currentUserProfileProvider).value;
+    if (profile != null && profile.preferences.containsKey('language')) {
+      return profile.preferences['language'] as String? ?? 'en';
+    }
+    return 'en';
+  }
+
+  void setLocaleCode(String code) {
+    _activeCode = code.toLowerCase();
+    state = _activeCode!;
+  }
+}
+
+final appLocaleCodeProvider =
+    NotifierProvider<AppLocaleCodeNotifier, String>(AppLocaleCodeNotifier.new);
+
 class AppLocaleNotifier extends Notifier<Locale> {
   @override
   Locale build() {
-    final profile = ref.watch(currentUserProfileProvider).value;
-    if (profile != null && profile.preferences.containsKey('language')) {
-      final code = profile.preferences['language'] as String? ?? 'en';
-      return _mapCodeToLocale(code);
-    }
-    return const Locale('en');
+    final code = ref.watch(appLocaleCodeProvider);
+    return _mapCodeToLocale(code);
   }
 
   static Locale _mapCodeToLocale(String code) {
@@ -35,9 +55,12 @@ class AppLocaleNotifier extends Notifier<Locale> {
   }
 
   Future<void> setLocale(String langCode) async {
+    ref.read(appLocaleCodeProvider.notifier).setLocaleCode(langCode.toLowerCase());
     state = _mapCodeToLocale(langCode);
-    final repo = ref.read(userRepositoryProvider);
-    await repo.updateSinglePreference('language', langCode.toLowerCase());
+    try {
+      final repo = ref.read(userRepositoryProvider);
+      await repo.updateSinglePreference('language', langCode.toLowerCase());
+    } catch (_) {}
   }
 }
 

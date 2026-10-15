@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/features/search/presentation/providers/search_provider.dart';
 import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/empty_state.dart';
 import 'package:storyverse/core/widgets/skeleton_loader.dart';
+import 'package:storyverse/core/localization/app_localizations.dart';
 import 'package:storyverse/features/search/presentation/widgets/voice_search_dialog.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -58,50 +60,51 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final query = ref.watch(searchQueryProvider);
     final resultsAsync = ref.watch(searchStoriesProvider);
     final recentSearches = ref.watch(recentSearchesProvider);
+    final hasActiveQuery = query.isNotEmpty || _controller.text.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryAccent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'EXPLORE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 2.0,
-                    color: AppColors.secondaryText,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+    return PopScope(
+      canPop: !hasActiveQuery,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (hasActiveQuery) {
+          _controller.clear();
+          _focusNode.unfocus();
+          ref.read(searchQueryProvider.notifier).clear();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 20,
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Search',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            tooltip: 'Back',
+            onPressed: () {
+              if (hasActiveQuery) {
+                _controller.clear();
+                _focusNode.unfocus();
+                ref.read(searchQueryProvider.notifier).clear();
+              } else {
+                context.pop();
+              }
+            },
+          ),
+          title: Text(
+            context.loc.search,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
-          ],
+          ),
+          toolbarHeight: 60,
         ),
-        toolbarHeight: 90,
-      ),
       body: Column(
         children: [
           Padding(
@@ -122,10 +125,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               child: TextField(
                 controller: _controller,
                 focusNode: _focusNode,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Search stories, genres, authors...',
-                  hintStyle: const TextStyle(color: AppColors.mutedText),
+                  hintText: context.loc.searchHint,
+                  hintStyle: const TextStyle(color: AppColors.mutedText, fontSize: 14),
                   prefixIcon: const Icon(
                     Icons.search,
                     color: AppColors.secondaryText,
@@ -149,7 +152,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           Icons.mic_rounded,
                           color: AppColors.primaryAccent,
                         ),
-                        tooltip: 'Voice Search',
+                        tooltip: context.loc.voiceSearch,
                         onPressed: () => VoiceSearchDialog.show(context),
                       ),
                     ],
@@ -171,7 +174,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       width: 1.5,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
                 onChanged: (value) =>
                     ref.read(searchQueryProvider.notifier).update(value),
@@ -189,11 +193,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   : resultsAsync.when(
                       data: (stories) {
                         if (stories.isEmpty) {
-                          return const EmptyState(
-                            key: ValueKey('no_results'),
+                          return EmptyState(
+                            key: const ValueKey('no_results'),
                             icon: Icons.search_off_rounded,
-                            title: 'No results found',
-                            message: 'Try adjusting your search terms.',
+                            title: context.loc.noResults,
+                            message: context.loc.noResultsSub,
                           );
                         }
                         return _buildResultsGrid(stories);
@@ -202,7 +206,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       error: (e, _) => EmptyState(
                         key: const ValueKey('error'),
                         icon: Icons.error_outline,
-                        title: 'Error',
+                        title: context.loc.errorOccurred,
                         message: 'Failed to search stories: $e',
                       ),
                     ),
@@ -210,20 +214,21 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyStateView(List<String> recentSearches) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
         if (recentSearches.isNotEmpty) ...[
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Recent Searches',
-                style: TextStyle(
+              Text(
+                context.loc.recentSearches,
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -232,9 +237,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               TextButton(
                 onPressed: () =>
                     ref.read(recentSearchesProvider.notifier).clearAll(),
-                child: const Text(
-                  'Clear All',
-                  style: TextStyle(color: AppColors.mutedText, fontSize: 13),
+                child: Text(
+                  context.loc.clearAll,
+                  style: const TextStyle(color: AppColors.mutedText, fontSize: 13),
                 ),
               ),
             ],
@@ -277,7 +282,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             return ActionChip(
               backgroundColor: AppColors.primarySurface,
               side: BorderSide(
-                color: AppColors.primaryAccent.withValues(alpha: 0.35),
+                color: Colors.white.withValues(alpha: 0.12),
               ),
               label: Text(
                 cat,

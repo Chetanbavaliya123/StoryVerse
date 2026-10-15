@@ -20,8 +20,19 @@ final trendingStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
     final list = catalog.isNotEmpty
         ? catalog
         : ref.read(storyRepositoryProvider).getDemoStories();
-    final trending = list.where((s) => s.isTrending).take(5).toList();
-    return trending.isNotEmpty ? trending : list.take(5).toList();
+    final result = <StoryModel>[];
+    for (final s in list.where((s) => s.isTrending)) {
+      if (!result.any((item) => item.id == s.id)) {
+        result.add(s);
+      }
+    }
+    for (final s in list) {
+      if (result.length >= 10) break;
+      if (!result.any((item) => item.id == s.id)) {
+        result.add(s);
+      }
+    }
+    return result;
   });
 });
 
@@ -31,7 +42,21 @@ final latestStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
     final list = catalog.isNotEmpty
         ? catalog
         : ref.read(storyRepositoryProvider).getDemoStories();
-    return list.take(10).toList();
+    final result = <StoryModel>[];
+    for (final s in list.where((s) => s.isNew)) {
+      if (!result.any((item) => item.id == s.id)) {
+        result.add(s);
+      }
+    }
+    var sorted = List<StoryModel>.from(list);
+    sorted.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+    for (final s in sorted) {
+      if (result.length >= 10) break;
+      if (!result.any((item) => item.id == s.id)) {
+        result.add(s);
+      }
+    }
+    return result;
   });
 });
 
@@ -51,6 +76,8 @@ final popularStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
     final list = catalog.isNotEmpty
         ? catalog
         : ref.read(storyRepositoryProvider).getDemoStories();
+    final popular = list.where((s) => s.isPopular).toList();
+    if (popular.isNotEmpty) return popular;
     var sorted = List<StoryModel>.from(list);
     sorted.sort((a, b) => b.views.compareTo(a.views));
     return sorted.take(20).toList();
@@ -63,6 +90,8 @@ final topTenStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
     final list = catalog.isNotEmpty
         ? catalog
         : ref.read(storyRepositoryProvider).getDemoStories();
+    final flagged = list.where((s) => s.isTopTen).toList();
+    if (flagged.isNotEmpty) return flagged.take(10).toList();
     var sorted = List<StoryModel>.from(list);
     sorted.sort((a, b) {
       double scoreA = a.views + (a.rating * 100);
@@ -73,13 +102,28 @@ final topTenStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
   });
 });
 
+bool _matchesLanguage(String storyLang, String queryLang) {
+  final sl = storyLang.trim().toLowerCase();
+  final ql = queryLang.trim().toLowerCase();
+  if (sl.isEmpty || ql.isEmpty) return false;
+  if (sl == ql) return true;
+  if ((sl == 'hi' || sl == 'hindi') && (ql == 'hi' || ql == 'hindi')) return true;
+  if ((sl == 'en' || sl == 'english') && (ql == 'en' || ql == 'english')) return true;
+  if ((sl == 'gu' || sl == 'gujarati') && (ql == 'gu' || ql == 'gujarati')) return true;
+  if ((sl == 'mr' || sl == 'marathi') && (ql == 'mr' || ql == 'marathi')) return true;
+  if ((sl == 'bn' || sl == 'bengali') && (ql == 'bn' || ql == 'bengali')) return true;
+  if ((sl == 'ta' || sl == 'tamil') && (ql == 'ta' || ql == 'tamil')) return true;
+  if ((sl == 'te' || sl == 'telugu') && (ql == 'te' || ql == 'telugu')) return true;
+  return false;
+}
+
 final storiesByLanguageProvider = Provider.family<AsyncValue<List<StoryModel>>, String>((ref, language) {
   final catalogAsync = ref.watch(masterCatalogProvider);
   return catalogAsync.whenData((catalog) {
     final list = catalog.isNotEmpty
         ? catalog
         : ref.read(storyRepositoryProvider).getDemoStories();
-    return list.where((s) => s.language.trim().toLowerCase() == language.trim().toLowerCase()).toList();
+    return list.where((s) => _matchesLanguage(s.language, language)).toList();
   });
 });
 
@@ -93,17 +137,36 @@ final storiesByMultiFilterProvider = Provider.family<AsyncValue<List<StoryModel>
     
     final genre = filters['genre'];
     if (genre != null && genre.isNotEmpty) {
-      filtered = filtered.where((s) => s.genreId.toLowerCase() == genre.toLowerCase()).toList();
+      final gTarget = genre.toLowerCase().trim();
+      filtered = filtered.where((s) {
+        final g = s.genreId.toLowerCase().trim();
+        final c = s.categoryId.toLowerCase().trim();
+        final tags = s.tags.map((t) => t.toLowerCase().trim()).toList();
+        return g == gTarget || c == gTarget || tags.contains(gTarget);
+      }).toList();
     }
     
     final language = filters['language'];
     if (language != null && language.isNotEmpty) {
-      filtered = filtered.where((s) => s.language.trim().toLowerCase() == language.trim().toLowerCase()).toList();
+      filtered = filtered.where((s) => _matchesLanguage(s.language, language)).toList();
     }
     
     final category = filters['category'];
     if (category != null && category.isNotEmpty) {
-      filtered = filtered.where((s) => s.categoryId.toLowerCase() == category.toLowerCase()).toList();
+      final cat = category.toLowerCase().trim();
+      if (cat == 'trending') {
+        filtered = filtered.where((s) => s.isTrending || s.categoryId.toLowerCase() == 'trending').toList();
+      } else if (cat == 'new' || cat == 'new-arrivals') {
+        filtered = filtered.where((s) => s.isNew || s.categoryId.toLowerCase() == 'new').toList();
+      } else if (cat == 'popular') {
+        filtered = filtered.where((s) => s.isPopular || s.categoryId.toLowerCase() == 'popular').toList();
+      } else {
+        filtered = filtered.where((s) {
+          final c = s.categoryId.toLowerCase().trim();
+          final g = s.genreId.toLowerCase().trim();
+          return c == cat || g == cat;
+        }).toList();
+      }
     }
     
     return filtered;
@@ -178,8 +241,9 @@ final storiesByGenreProvider =
         return list
             .where((s) {
               final g = s.genreId.trim().toLowerCase();
+              final c = s.categoryId.trim().toLowerCase();
               final tags = s.tags.map((t) => t.trim().toLowerCase()).toList();
-              return g == target || tags.contains(target);
+              return g == target || c == target || tags.contains(target);
             })
             .take(20)
             .toList();
@@ -193,8 +257,14 @@ final storiesByCategoryProvider =
         final list = catalog.isNotEmpty
             ? catalog
             : ref.read(storyRepositoryProvider).getDemoStories();
+        final target = categoryId.trim().toLowerCase();
         return list
-            .where((s) => s.categoryId.toLowerCase() == categoryId.toLowerCase())
+            .where((s) {
+              final c = s.categoryId.trim().toLowerCase();
+              final g = s.genreId.trim().toLowerCase();
+              final tags = s.tags.map((t) => t.trim().toLowerCase()).toList();
+              return c == target || g == target || tags.contains(target);
+            })
             .take(20)
             .toList();
       });

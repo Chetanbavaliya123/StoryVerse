@@ -10,8 +10,13 @@ import 'package:storyverse/core/models/ai_generation_model.dart';
 
 class AiGeneratorScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
+  final VoidCallback? onStorySaved;
 
-  const AiGeneratorScreen({super.key, this.isEmbedded = false});
+  const AiGeneratorScreen({
+    super.key,
+    this.isEmbedded = false,
+    this.onStorySaved,
+  });
 
   @override
   ConsumerState<AiGeneratorScreen> createState() => _AiGeneratorScreenState();
@@ -710,6 +715,7 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
                                     .read(aiRepositoryProvider)
                                     .saveToLibrary(gen);
                                 ref.invalidate(libraryStoriesProvider);
+                                ref.invalidate(aiStoriesProvider);
                                 if (mounted) {
                                   setState(() {
                                     _isSaving = false;
@@ -781,6 +787,28 @@ class _AiGeneratorScreenState extends ConsumerState<AiGeneratorScreen>
                       ),
                     ),
                   ),
+                  if (_isSaved && widget.onStorySaved != null) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: widget.onStorySaved,
+                        icon: const Icon(Icons.auto_awesome, size: 18),
+                        label: const Text('View in AI Stories'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF221626),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: AppColors.primaryAccent.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 40),
                 ],
               ),

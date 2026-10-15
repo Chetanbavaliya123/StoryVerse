@@ -9,6 +9,7 @@ import 'package:storyverse/core/models/story_model.dart';
 import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
 import 'package:storyverse/core/widgets/story_card.dart';
 import 'package:storyverse/core/widgets/section_header.dart';
+import 'package:storyverse/core/localization/app_localizations.dart';
 import 'package:storyverse/features/home/presentation/widgets/home_components.dart';
 import 'package:storyverse/features/home/presentation/providers/home_provider.dart';
 
@@ -31,10 +32,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       vsync: this,
     );
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        ref.read(homeActiveTabProvider.notifier).setTab(
-              HomeCategoryTabs.categories[_tabController.index],
-            );
+      final currentCategory = HomeCategoryTabs.categories[_tabController.index];
+      if (ref.read(homeActiveTabProvider) != currentCategory) {
+        ref.read(homeActiveTabProvider.notifier).setTab(currentCategory);
       }
     });
   }
@@ -48,22 +48,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 90.0, right: 8.0),
-        child: FloatingActionButton(
-          heroTag: 'ai_hub_fab',
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            context.push('/ai/assistant');
-          },
-          backgroundColor: AppColors.primaryAccent,
-          elevation: 6,
-          child: const Icon(
-            Icons.chat_bubble_outline_rounded,
-            color: Colors.white,
-            size: 26,
+        padding: const EdgeInsets.only(bottom: 12.0, right: 12.0),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              context.push('/ai');
+            },
+            borderRadius: BorderRadius.circular(28),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF241416),
+                    Color(0xFF141418),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: AppColors.primaryAccent.withValues(alpha: 0.6),
+                  width: 1.4,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primaryAccent.withValues(alpha: 0.3),
+                    blurRadius: 16,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryAccent.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome,
+                      color: AppColors.primaryAccent,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'AI Hub',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -120,6 +174,7 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
 
   Future<void> _onRefresh() async {
     HapticFeedback.lightImpact();
+    ref.invalidate(masterCatalogProvider);
     ref.invalidate(homeFeedProvider);
     ref.invalidate(trendingStoriesProvider);
     ref.invalidate(continueWatchingProvider);
@@ -132,6 +187,8 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final activeTab = ref.watch(homeActiveTabProvider);
+    final isPopular = activeTab == 'Popular';
     final homeFeedAsync = ref.watch(homeFeedProvider);
 
     return RefreshIndicator(
@@ -141,18 +198,20 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
       child: SingleChildScrollView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: const EdgeInsets.only(bottom: 24),
         child: homeFeedAsync.when(
           data: (feed) => Column(
             key: const ValueKey('home_feed_content'),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 1. HERO FEATURED CAROUSEL
-              HeroCarousel(
-                key: const ValueKey('hero_carousel'),
-                stories: feed.heroStories,
-              ),
-              const SizedBox(height: 24),
+              if (feed.heroStories.isNotEmpty) ...[
+                HeroCarousel(
+                  key: const ValueKey('hero_carousel'),
+                  stories: feed.heroStories,
+                ),
+                const SizedBox(height: 24),
+              ],
 
               // 2. CONTINUE WATCHING (hide ONLY after loading complete if empty)
               if (feed.continueWatching.isNotEmpty) ...[
@@ -161,19 +220,17 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SectionHeader(
-                      title: 'Continue Watching',
+                      title: context.loc.continueWatching,
                       icon: Icons.play_circle_outline,
                       onAction: () => context.push('/library'),
-                      actionLabel: 'See All',
+                      actionLabel: context.loc.seeAll,
                     ),
                     SizedBox(
                       height: 170,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: feed.continueWatching.length > 5
-                            ? 5
-                            : feed.continueWatching.length,
+                        itemCount: feed.continueWatching.length,
                         itemBuilder: (context, index) {
                           final item = feed.continueWatching[index];
                           return _HistoryCard(
@@ -215,10 +272,10 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       SectionHeader(
-                        title: 'Trending Now',
+                        title: context.loc.trendingNow,
                         icon: Icons.military_tech,
                         onAction: () => context.push('/discover?category=trending'),
-                        actionLabel: 'See All',
+                        actionLabel: context.loc.seeAll,
                       ),
                       SizedBox(
                         height: 215,
@@ -245,10 +302,10 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SectionHeader(
-                      title: 'New Arrivals',
+                      title: context.loc.newArrivals,
                       icon: Icons.new_releases,
                       onAction: () => context.push('/discover?category=new'),
-                      actionLabel: 'See All',
+                      actionLabel: context.loc.seeAll,
                     ),
                     SizedBox(
                       height: 225,
@@ -270,9 +327,9 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
                 ),
 
               // 5. BROWSE BY LANGUAGE
-              const SectionHeader(
-                key: ValueKey('browse_language_header'),
-                title: 'Browse by Language',
+              SectionHeader(
+                key: const ValueKey('browse_language_header'),
+                title: context.loc.browseByLanguage,
                 icon: Icons.language,
               ),
               SizedBox(
@@ -308,9 +365,9 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
               const SizedBox(height: 28),
 
               // 6. POPULAR GENRES
-              const SectionHeader(
-                key: ValueKey('popular_genres_header'),
-                title: 'Popular Genres',
+              SectionHeader(
+                key: const ValueKey('popular_genres_header'),
+                title: context.loc.popularGenres,
                 icon: Icons.category,
               ),
               SizedBox(
@@ -348,20 +405,18 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
                   ],
                 ),
               ),
-              const SizedBox(height: 28),
-
-              // 7. AI HUB PROMOTIONAL CARD
-              const AiHubCtaCard(key: ValueKey('ai_hub_cta')),
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
             ],
           ),
           loading: () => Column(
             key: const ValueKey('home_feed_skeleton'),
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              HeroCarouselSkeleton(key: ValueKey('hero_skeleton')),
-              SizedBox(height: 24),
-              ContinueWatchingSkeleton(key: ValueKey('continue_watching_skeleton')),
+            children: [
+              if (isPopular) ...[
+                const HeroCarouselSkeleton(key: ValueKey('hero_skeleton')),
+                const SizedBox(height: 24),
+              ],
+              const ContinueWatchingSkeleton(key: ValueKey('continue_watching_skeleton')),
               TopRankedSkeleton(key: ValueKey('trending_skeleton')),
               StorySectionSkeleton(
                 key: ValueKey('new_arrivals_skeleton'),
@@ -382,9 +437,7 @@ class _PopularFeedTabState extends ConsumerState<_PopularFeedTab>
                 icon: Icons.category,
               ),
               SizedBox(height: 80),
-              SizedBox(height: 28),
-              AiHubCtaCard(key: ValueKey('ai_hub_cta_skeleton')),
-              SizedBox(height: 40),
+              SizedBox(height: 24),
             ],
           ),
           error: (err, _) => Center(
@@ -527,12 +580,10 @@ class _CategoryFeedTabState extends ConsumerState<_CategoryFeedTab>
           return SingleChildScrollView(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 120),
+            padding: const EdgeInsets.only(top: 16, bottom: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                HeroCarousel(stories: stories.take(5).toList()),
-                const SizedBox(height: 24),
                 SectionHeader(
                   title: '${widget.category} Stories',
                   icon: Icons.auto_awesome,
@@ -573,12 +624,10 @@ class _CategoryFeedTabState extends ConsumerState<_CategoryFeedTab>
         },
         loading: () => SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 120),
+          padding: const EdgeInsets.only(top: 16, bottom: 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              HeroCarouselSkeleton(),
-              SizedBox(height: 24),
               StoryGridSkeleton(title: 'Loading...'),
             ],
           ),
@@ -761,10 +810,10 @@ class _BecauseYouWatchedSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              title: 'Because You Watched "${lastWatched.story.title}"',
+              title: '${context.loc.becauseYouWatched} "${lastWatched.story.title}"',
               icon: Icons.auto_awesome,
               onAction: () => context.push('/discover?genre=$genre'),
-              actionLabel: 'See All',
+              actionLabel: context.loc.seeAll,
             ),
             SizedBox(
               height: 225,

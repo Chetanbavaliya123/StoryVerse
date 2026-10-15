@@ -23,7 +23,6 @@ import 'package:storyverse/features/library/presentation/screens/library_screen.
 import 'package:storyverse/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:storyverse/features/profile/presentation/screens/profile_screen.dart';
 import 'package:storyverse/features/ai/presentation/screens/ai_hub_screen.dart';
-import 'package:storyverse/features/ai/presentation/screens/ai_assistant_screen.dart';
 import 'package:storyverse/features/ai/presentation/screens/ai_generator_screen.dart';
 import 'package:storyverse/features/ai/presentation/screens/ai_result_screen.dart';
 
@@ -43,6 +42,23 @@ final GlobalKey<NavigatorState> _libraryNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'library');
 final GlobalKey<NavigatorState> _profileNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'profile');
+
+GlobalKey<NavigatorState>? getBranchNavigatorKey(int index) {
+  switch (index) {
+    case 0:
+      return _homeNavigatorKey;
+    case 1:
+      return _shortsNavigatorKey;
+    case 2:
+      return _premiumNavigatorKey;
+    case 3:
+      return _libraryNavigatorKey;
+    case 4:
+      return _profileNavigatorKey;
+    default:
+      return null;
+  }
+}
 
 CustomTransitionPage _buildPageWithTransition({
   required BuildContext context,
@@ -242,12 +258,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           slideUp: true,
         ),
         routes: [
-          GoRoute(
-            parentNavigatorKey: _rootNavigatorKey,
-            path: 'assistant',
-            name: 'aiAssistant',
-            builder: (context, state) => const AiAssistantScreen(),
-          ),
           GoRoute(
             parentNavigatorKey: _rootNavigatorKey,
             path: 'generator',

@@ -20,7 +20,7 @@ final detailedWatchHistoryProvider =
       .collection('users')
       .doc(user.uid)
       .collection('watchHistory')
-      .limit(20)
+      .limit(100)
       .snapshots();
 
   await for (final snapshot in stream) {
@@ -112,7 +112,7 @@ final favoriteStoriesProvider = StreamProvider<List<StoryModel>>((ref) async* {
       .collection('users')
       .doc(user.uid)
       .collection('favorites')
-      .limit(20)
+      .limit(100)
       .snapshots();
 
   await for (final snapshot in stream) {
@@ -153,7 +153,7 @@ final watchHistoryStoriesProvider = StreamProvider<List<StoryModel>>((ref) async
       .collection('users')
       .doc(user.uid)
       .collection('watchHistory')
-      .limit(20)
+      .limit(100)
       .snapshots();
 
   await for (final snapshot in stream) {
@@ -196,7 +196,7 @@ final libraryStoriesProvider = StreamProvider<List<StoryModel>>((ref) async* {
       .collection('users')
       .doc(user.uid)
       .collection('library')
-      .limit(20)
+      .limit(100)
       .snapshots();
 
   await for (final snapshot in stream) {
@@ -232,8 +232,87 @@ final savedStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
       allStories.where((s) => s.categoryId != 'ai-generated').toList());
 });
 
-final aiStoriesProvider = Provider<AsyncValue<List<StoryModel>>>((ref) {
-  final asyncStories = ref.watch(libraryStoriesProvider);
-  return asyncStories.whenData((allStories) => 
-      allStories.where((s) => s.categoryId == 'ai-generated').toList());
+final aiStoriesProvider = StreamProvider<List<StoryModel>>((ref) async* {
+  final user = ref.watch(authStateChangesProvider).value;
+  if (user == null) {
+    yield [];
+    return;
+  }
+
+  final libraryStream = FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .collection('library')
+      .limit(100)
+      .snapshots();
+
+  await for (final snapshot in libraryStream) {
+    final storyRepo = ref.read(storyRepositoryProvider);
+    final stories = <StoryModel>[];
+    final processedIds = <String>{};
+
+    for (var doc in snapshot.docs) {
+      final storyId = doc.data()['storyId'] as String?;
+      if (storyId != null && !processedIds.contains(storyId)) {
+        processedIds.add(storyId);
+        final story = await storyRepo.getStory(storyId);
+        if (story != null && story.categoryId == 'ai-generated') {
+          stories.add(story);
+        }
+      }
+    }
+
+    try {
+      final aiGenSnapshot = await FirebaseFirestore.instance
+          .collection('aiGenerations')
+          .where('userId', isEqualTo: user.uid)
+          .orderBy('createdAt', descending: true)
+          .limit(100)
+          .get();
+
+      for (var doc in aiGenSnapshot.docs) {
+        if (!processedIds.contains(doc.id)) {
+          processedIds.add(doc.id);
+          final data = doc.data();
+          final result = data['result'] as Map<String, dynamic>?;
+          stories.add(
+            StoryModel(
+              id: doc.id,
+              title: result?['title'] ?? data['title'] ?? 'Untitled AI Story',
+              description: result != null ? result['description'] ?? '' : '',
+              fullDescription: result?['story'] ?? data['storyContent'] ?? '',
+              thumbnailUrl:
+                  'https://firebasestorage.googleapis.com/v0/b/storyverse-465bd.appspot.com/o/placeholders%2Fai_story_cover.png?alt=media',
+              bannerUrl: null,
+              genreId: (data['genre'] ?? 'ai').toString().toLowerCase(),
+              categoryId: 'ai-generated',
+              language: data['language'] ?? 'English',
+              tags: ['ai', (data['genre'] ?? '').toString().toLowerCase()],
+              author: user.uid,
+              status: 'published',
+              episodeCount: 1,
+              views: 0,
+              rating: 0.0,
+              isDemo: false,
+              isPublished: true,
+              isTrending: false,
+              createdAt:
+                  (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              updatedAt:
+                  (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      // Fallback: proceed with stories resolved from user's library
+    }
+
+    stories.sort((a, b) {
+      final aDate = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bDate.compareTo(aDate);
+    });
+    yield stories;
+  }
 });

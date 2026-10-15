@@ -124,11 +124,11 @@ class StoryVerseThemeTokens extends ThemeExtension<StoryVerseThemeTokens> {
       );
 
   static StoryVerseThemeTokens get charcoal => StoryVerseThemeTokens(
-        bg: const Color(0xFF101318),
-        surface: const Color(0xFF171B22),
-        surfaceElevated: const Color(0xFF202630),
+        bg: const Color(0xFF0F1014),
+        surface: const Color(0xFF141519),
+        surfaceElevated: const Color(0xFF1A1B22),
         surfaceGlass: const Color(0x1EFFFFFF),
-        border: const Color(0xFF2C3442),
+        border: const Color(0xFF252730),
         accent: const Color(0xFFE53935),
         accentGlow: const Color(0x33E53935),
         textPrimary: Colors.white,
@@ -216,6 +216,165 @@ class StoryVerseThemeTokens extends ThemeExtension<StoryVerseThemeTokens> {
         glowShadow: [
           BoxShadow(
             color: const Color(0xFFFF2A4A).withValues(alpha: 0.3),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+        softShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.6),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      );
+
+  static StoryVerseThemeTokens get cyberpunk => StoryVerseThemeTokens(
+        bg: const Color(0xFF070814),
+        surface: const Color(0xFF0F1226),
+        surfaceElevated: const Color(0xFF181C38),
+        surfaceGlass: const Color(0x2200E5FF),
+        border: const Color(0xFF22294E),
+        accent: const Color(0xFF00E5FF),
+        accentGlow: const Color(0x3300E5FF),
+        textPrimary: Colors.white,
+        textMuted: const Color(0xFF8E9BB5),
+        displayTitle: GoogleFonts.outfit(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          letterSpacing: -0.5,
+        ),
+        sectionHeader: GoogleFonts.outfit(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+        cardTitle: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+        body: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: const Color(0xFF8E9BB5),
+          height: 1.5,
+        ),
+        caption: GoogleFonts.outfit(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: const Color(0xFF8E9BB5),
+        ),
+        glowShadow: [
+          BoxShadow(
+            color: const Color(0xFF00E5FF).withValues(alpha: 0.35),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+        softShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.6),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      );
+
+  static StoryVerseThemeTokens get emerald => StoryVerseThemeTokens(
+        bg: const Color(0xFF050F0A),
+        surface: const Color(0xFF0C1D14),
+        surfaceElevated: const Color(0xFF132B1E),
+        surfaceGlass: const Color(0x2200E676),
+        border: const Color(0xFF1D3B2B),
+        accent: const Color(0xFF00E676),
+        accentGlow: const Color(0x3300E676),
+        textPrimary: Colors.white,
+        textMuted: const Color(0xFF85A893),
+        displayTitle: GoogleFonts.outfit(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          letterSpacing: -0.5,
+        ),
+        sectionHeader: GoogleFonts.outfit(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+        cardTitle: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+        body: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: const Color(0xFF85A893),
+          height: 1.5,
+        ),
+        caption: GoogleFonts.outfit(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: const Color(0xFF85A893),
+        ),
+        glowShadow: [
+          BoxShadow(
+            color: const Color(0xFF00E676).withValues(alpha: 0.35),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+        softShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.6),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      );
+
+  static StoryVerseThemeTokens get amethyst => StoryVerseThemeTokens(
+        bg: const Color(0xFF0A0612),
+        surface: const Color(0xFF150D24),
+        surfaceElevated: const Color(0xFF201438),
+        surfaceGlass: const Color(0x22A855F7),
+        border: const Color(0xFF2E1C4E),
+        accent: const Color(0xFFA855F7),
+        accentGlow: const Color(0x33A855F7),
+        textPrimary: Colors.white,
+        textMuted: const Color(0xFFA693C0),
+        displayTitle: GoogleFonts.outfit(
+          fontSize: 28,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          letterSpacing: -0.5,
+        ),
+        sectionHeader: GoogleFonts.outfit(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+        cardTitle: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+        body: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: const Color(0xFFA693C0),
+          height: 1.5,
+        ),
+        caption: GoogleFonts.outfit(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: const Color(0xFFA693C0),
+        ),
+        glowShadow: [
+          BoxShadow(
+            color: const Color(0xFFA855F7).withValues(alpha: 0.35),
             blurRadius: 20,
             spreadRadius: 2,
           ),

@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:storyverse/core/theme/app_colors.dart';
 import 'package:storyverse/core/models/user_model.dart';
 import 'package:storyverse/core/localization/locale_provider.dart';
+import 'package:storyverse/core/localization/app_localizations.dart';
 import 'package:storyverse/core/theme/theme_provider.dart';
 import 'package:storyverse/features/authentication/data/auth_repository.dart';
 import 'package:storyverse/features/authentication/presentation/providers/auth_provider.dart';
@@ -85,17 +86,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         : authUser?.photoURL;
     final hasPhoto = photoUrl != null && photoUrl.trim().isNotEmpty;
 
-    final selectedLanguage = (profile?.preferences['language'] as String?) ?? 'en';
+    final selectedLanguage = ref.watch(appLocaleCodeProvider);
     final languageName = _getLanguageDisplayName(selectedLanguage);
 
-    final selectedTheme = (profile?.preferences['theme'] as String?) ?? 'OLED Pure Black';
+    final selectedTheme = ref.watch(appThemeNameProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.primaryBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.white),
@@ -105,7 +107,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: const EdgeInsets.only(bottom: 32),
         child: Column(
           children: [
             // Header / Avatar Area
@@ -113,16 +115,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
               width: double.infinity,
               padding: const EdgeInsets.only(top: 100, bottom: 32),
               decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            AppColors.primaryAccent.withValues(alpha: 0.18),
-                            AppColors.primaryBackground,
-                          ],
-                        ),
-                      ),
-                      child: Column(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.primaryAccent.withValues(alpha: 0.20),
+                    Theme.of(context).scaffoldBackgroundColor,
+                  ],
+                ),
+              ),
+              child: Column(
                 children: [
                   GestureDetector(
                     onTap: () => _showEditProfileModal(context, profile, authUser),
@@ -207,18 +209,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   _buildAnimatedSection(
                     index: 0,
                     child: _buildSectionGroup(
-                      title: 'Account',
+                      title: context.loc.account,
                       children: [
                         _buildListTile(
                           Icons.person_outline_rounded,
-                          'Personal Information',
-                          subtitle: 'Edit name & profile photo',
+                          context.loc.personalInformation,
+                          subtitle: context.loc.personalInfoSub,
                           onTap: () => _showEditProfileModal(context, profile, authUser),
                         ),
                         _buildListTile(
                           Icons.security_outlined,
-                          'Security & Privacy',
-                          subtitle: 'Password reset & account safety',
+                          context.loc.securityPrivacy,
+                          subtitle: context.loc.securityPrivacySub,
                           onTap: () => _showSecurityPrivacyModal(context, authUser),
                         ),
                       ],
@@ -230,30 +232,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   _buildAnimatedSection(
                     index: 1,
                     child: _buildSectionGroup(
-                      title: 'Preferences',
+                      title: context.loc.preferences,
                       children: [
                         _buildListTile(
                           Icons.notifications_outlined,
-                          'Notifications',
-                          subtitle: 'Alerts, new episodes & messages',
+                          context.loc.notifications,
+                          subtitle: context.loc.notificationsSub,
                           onTap: () => _showNotificationsModal(context, profile),
                         ),
                         _buildListTile(
                           Icons.language_outlined,
-                          'Language & Region',
+                          context.loc.languageRegion,
                           subtitle: languageName,
                           onTap: () => _showLanguageModal(context, profile),
                         ),
                         _buildListTile(
                           Icons.dark_mode_outlined,
-                          'Theme Settings',
+                          context.loc.themeSettings,
                           subtitle: selectedTheme,
                           onTap: () => _showThemeModal(context, profile),
                         ),
                         _buildListTile(
                           Icons.tune_rounded,
-                          'Content & Onboarding Preferences',
-                          subtitle: 'Preferred language & story genres',
+                          context.loc.contentOnboarding,
+                          subtitle: context.loc.contentOnboardingSub,
                           onTap: () => context.push('/onboarding'),
                         ),
                       ],
@@ -265,31 +267,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   _buildAnimatedSection(
                     index: 2,
                     child: _buildSectionGroup(
-                      title: 'Library & Shortcuts',
+                      title: context.loc.libraryShortcuts,
                       children: [
                         _buildListTile(
                           Icons.auto_awesome,
-                          'AI Story Hub',
-                          subtitle: 'Generate & create micro-stories',
+                          context.loc.aiHub,
+                          subtitle: context.loc.aiHubSub,
                           isAccent: true,
                           onTap: () => context.push('/ai'),
                         ),
                         _buildListTile(
                           Icons.history_rounded,
-                          'Viewing History',
-                          subtitle: 'Episodes & stories you watched',
+                          context.loc.viewingHistory,
+                          subtitle: context.loc.viewingHistorySub,
                           onTap: () => context.push('/library?tab=0'),
                         ),
                         _buildListTile(
                           Icons.favorite_outline_rounded,
-                          'Favorites',
-                          subtitle: 'Liked and recommended stories',
+                          context.loc.favorites,
+                          subtitle: context.loc.favoritesSub,
                           onTap: () => context.push('/library?tab=1'),
                         ),
                         _buildListTile(
                           Icons.bookmark_outline_rounded,
-                          'My List / Saved Stories',
-                          subtitle: 'Saved for later watching',
+                          context.loc.myListSaved,
+                          subtitle: context.loc.myListSub,
                           onTap: () => context.push('/library?tab=2'),
                         ),
                       ],
@@ -301,31 +303,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   _buildAnimatedSection(
                     index: 3,
                     child: _buildSectionGroup(
-                      title: 'Support & Info',
+                      title: context.loc.supportInfo,
                       children: [
                         _buildListTile(
                           Icons.help_outline_rounded,
-                          'Help Center & FAQs',
-                          subtitle: 'Frequently asked questions & support',
+                          context.loc.helpCenter,
+                          subtitle: context.loc.helpCenterSub,
                           onTap: () => _showHelpCenterModal(context),
                         ),
                         _buildListTile(
                           Icons.info_outline_rounded,
-                          'About StoryVerse',
-                          subtitle: 'v1.0.0 • Terms & Privacy Policy',
+                          context.loc.about,
+                          subtitle: context.loc.aboutSub,
                           onTap: () => _showAboutModal(context),
                         ),
                         _buildListTile(
                           Icons.logout_rounded,
-                          'Log Out',
-                          subtitle: 'Sign out of this device',
+                          context.loc.logOut,
+                          subtitle: context.loc.logOutSub,
                           isDestructive: true,
                           onTap: () => _confirmLogout(context),
                         ),
                         _buildListTile(
                           Icons.delete_forever_rounded,
-                          'Delete Account',
-                          subtitle: 'Permanently remove your account and all data',
+                          context.loc.deleteAccount,
+                          subtitle: context.loc.deleteAccountSub,
                           isDestructive: true,
                           onTap: () => _confirmDeleteAccount(context),
                         ),
@@ -953,15 +955,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   void _showLanguageModal(BuildContext context, UserModel? userModel) {
-    final current = (userModel?.preferences['language'] as String?) ?? 'en';
+    final current = ref.read(appLocaleCodeProvider);
     final languages = [
       {'code': 'en', 'name': 'English', 'native': 'English'},
       {'code': 'hi', 'name': 'Hindi', 'native': 'हिन्दी'},
       {'code': 'gu', 'name': 'Gujarati', 'native': 'ગુજરાતી'},
       {'code': 'mr', 'name': 'Marathi', 'native': 'मराठी'},
       {'code': 'bn', 'name': 'Bengali', 'native': 'বাংলা'},
-      {'code': 'ta', 'name': 'Tamil', 'native': 'தமிழ்'},
-      {'code': 'te', 'name': 'Telugu', 'native': 'తెలుగు'},
     ];
 
     showModalBottomSheet(
@@ -995,22 +995,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const Text(
-                    'Language & Region',
-                    style: TextStyle(
+                  Text(
+                    context.loc.selectLanguage,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Choose your preferred language for stories and UI',
-                    style: TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                  Text(
+                    context.loc.selectLangSub,
+                    style: const TextStyle(color: AppColors.secondaryText, fontSize: 13),
                   ),
                   const SizedBox(height: 16),
                   ...languages.map((lang) {
-                    final isSelected = current == lang['code'];
+                    final code = lang['code']!;
+                    final isSelected = current == code;
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
@@ -1038,12 +1039,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                             ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryAccent)
                             : null,
                         onTap: () {
-                          ref
-                              .read(userRepositoryProvider)
-                              .updateSinglePreference('language', lang['code']);
-                          ref
-                              .read(appLocaleProvider.notifier)
-                              .setLocale(lang['code']!);
+                          // Fast & synchronous instant switch:
+                          ref.read(appLocaleCodeProvider.notifier).setLocaleCode(code);
+                          ref.read(appLocaleProvider.notifier).setLocale(code);
+                          ref.read(userRepositoryProvider).updateSinglePreference('language', code);
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -1065,121 +1064,171 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   void _showThemeModal(BuildContext context, UserModel? userModel) {
-    final current = (userModel?.preferences['theme'] as String?) ?? 'OLED Pure Black';
+    final current = ref.read(appThemeNameProvider);
     final themes = [
       {
         'name': 'OLED Pure Black',
         'desc': 'Deep pitch black for high contrast & maximum OLED battery efficiency',
-        'color': const Color(0xFF000000),
+        'bg': const Color(0xFF000000),
+        'accent': const Color(0xFFE53935),
       },
       {
-        'name': 'Cinematic Charcoal',
-        'desc': 'Moody dark studio tone with soft charcoal accents',
-        'color': const Color(0xFF151515),
+        'name': 'Cyberpunk Neon',
+        'desc': 'Electric cyan glow with futuristic obsidian navy depths',
+        'bg': const Color(0xFF070814),
+        'accent': const Color(0xFF00E5FF),
+      },
+      {
+        'name': 'Emerald Obsidian',
+        'desc': 'Midnight jade & obsidian tone with vivid mint luminescence',
+        'bg': const Color(0xFF050F0A),
+        'accent': const Color(0xFF00E676),
+      },
+      {
+        'name': 'Cosmic Amethyst',
+        'desc': 'Velvet galactic dark void with radiant violet nebula accents',
+        'bg': const Color(0xFF0A0612),
+        'accent': const Color(0xFFA855F7),
       },
       {
         'name': 'Dark Crimson',
         'desc': 'StoryVerse dark crimson tint with subtle red ambient undertones',
-        'color': const Color(0xFF1C0A0A),
+        'bg': const Color(0xFF130709),
+        'accent': const Color(0xFFFF2A4A),
+      },
+      {
+        'name': 'Cinematic Charcoal',
+        'desc': 'Moody dark studio tone with soft charcoal accents',
+        'bg': const Color(0xFF101318),
+        'accent': const Color(0xFFE53935),
       },
     ];
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: AppColors.secondaryBackground,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        return DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          minChildSize: 0.45,
+          maxChildSize: 0.95,
+          builder: (context, scrollController) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              decoration: const BoxDecoration(
+                color: AppColors.secondaryBackground,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 18),
-              const Text(
-                'Theme Settings',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Customize the dark surface tone of StoryVerse',
-                style: TextStyle(color: AppColors.secondaryText, fontSize: 13),
-              ),
-              const SizedBox(height: 16),
-              ...themes.map((theme) {
-                final isSelected = current == theme['name'];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primaryAccent.withValues(alpha: 0.12)
-                        : AppColors.primarySurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: isSelected ? AppColors.primaryAccent : AppColors.border,
-                    ),
-                  ),
-                  child: ListTile(
-                    leading: Container(
-                      width: 24,
-                      height: 24,
+              child: ListView(
+                controller: scrollController,
+                padding: EdgeInsets.zero,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
                       decoration: BoxDecoration(
-                        color: theme['color'] as Color,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white30),
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    title: Text(
-                      theme['name'] as String,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.white70,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                    subtitle: Text(
-                      theme['desc'] as String,
-                      style: const TextStyle(color: AppColors.secondaryText, fontSize: 11),
-                    ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryAccent)
-                        : null,
-                    onTap: () {
-                      ref
-                          .read(userRepositoryProvider)
-                          .updateSinglePreference('theme', theme['name']);
-                      ref
-                          .read(appThemeProvider.notifier)
-                          .setTheme(theme['name'] as String);
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Theme set to ${theme['name']}'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
                   ),
-                );
-              }),
-            ],
-          ),
+                  const SizedBox(height: 18),
+                  Text(
+                    context.loc.selectTheme,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    context.loc.customizeTheme,
+                    style: const TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  ...themes.map((theme) {
+                    final themeName = theme['name'] as String;
+                    final isSelected = current == themeName;
+                    final bgColor = theme['bg'] as Color;
+                    final accentColor = theme['accent'] as Color;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? accentColor.withValues(alpha: 0.12)
+                            : AppColors.primarySurface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? accentColor : AppColors.border,
+                          width: isSelected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: ListTile(
+                        leading: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: bgColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: accentColor, width: 2),
+                            boxShadow: isSelected
+                                ? [
+                                    BoxShadow(
+                                      color: accentColor.withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: accentColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          themeName,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white70,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          theme['desc'] as String,
+                          style: const TextStyle(color: AppColors.secondaryText, fontSize: 11),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle_rounded, color: accentColor)
+                            : null,
+                        onTap: () {
+                          // Fast & synchronous instant switch:
+                          ref.read(appThemeNameProvider.notifier).setThemeName(themeName);
+                          ref.read(appThemeProvider.notifier).setTheme(themeName);
+                          ref.read(userRepositoryProvider).updateSinglePreference('theme', themeName);
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Theme set to $themeName'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            );
+          },
         );
       },
     );

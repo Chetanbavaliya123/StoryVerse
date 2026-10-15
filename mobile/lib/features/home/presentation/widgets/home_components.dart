@@ -7,6 +7,10 @@ import 'package:storyverse/core/models/story_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:storyverse/features/library/presentation/providers/library_provider.dart';
 import 'package:storyverse/features/library/data/library_repository.dart';
+import 'package:storyverse/core/localization/app_localizations.dart';
+import 'package:flutter/services.dart';
+import 'package:storyverse/features/story/data/story_repository.dart';
+import 'package:storyverse/features/story/presentation/providers/story_provider.dart';
 import 'package:storyverse/features/notifications/data/notification_repository.dart';
 import 'package:storyverse/features/search/presentation/widgets/voice_search_dialog.dart';
 
@@ -136,6 +140,25 @@ class HomeCategoryTabs extends StatelessWidget implements PreferredSizeWidget {
     'Comedy',
   ];
 
+  String _getCategoryLabel(BuildContext context, String cat) {
+    switch (cat) {
+      case 'Popular':
+        return context.loc.popular;
+      case 'Trending':
+        return context.loc.trending;
+      case 'New':
+        return context.loc.newArrivals;
+      case 'Romance':
+        return context.loc.romance;
+      case 'Horror':
+        return context.loc.horror;
+      case 'Comedy':
+        return context.loc.comedy;
+      default:
+        return cat;
+    }
+  }
+
   @override
   Size get preferredSize => const Size.fromHeight(46);
 
@@ -164,7 +187,7 @@ class HomeCategoryTabs extends StatelessWidget implements PreferredSizeWidget {
         ),
         tabs: categories
             .map((cat) => Tab(
-                  text: cat,
+                  text: _getCategoryLabel(context, cat),
                   height: 42,
                 ))
             .toList(),
@@ -189,16 +212,24 @@ class _HeroCarouselState extends State<HeroCarousel> {
   @override
   void initState() {
     super.initState();
-    _startAutoRotation();
+    if (widget.stories.isNotEmpty) {
+      _startAutoRotation();
+    }
   }
 
   void _startAutoRotation() {
     _timer?.cancel();
+    if (widget.stories.isEmpty) return;
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       if (_pageController.hasClients) {
+        final maxCount = widget.stories.length;
+        if (maxCount == 0) return;
         int nextIndex = _currentIndex + 1;
-        if (nextIndex >=
-            (widget.stories.length > 5 ? 5 : widget.stories.length)) {
+        if (nextIndex >= maxCount) {
           nextIndex = 0;
         }
         _pageController.animateToPage(
@@ -221,7 +252,7 @@ class _HeroCarouselState extends State<HeroCarousel> {
   Widget build(BuildContext context) {
     if (widget.stories.isEmpty) return const SizedBox.shrink();
 
-    final count = widget.stories.length > 5 ? 5 : widget.stories.length;
+    final count = widget.stories.length;
 
     return Column(
       children: [
@@ -259,21 +290,25 @@ class _HeroCarouselState extends State<HeroCarousel> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            count,
-            (index) => AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: _currentIndex == index ? 24 : 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: _currentIndex == index
-                    ? AppColors.primaryAccent
-                    : Colors.white24,
-                borderRadius: BorderRadius.circular(4),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              count,
+              (index) => AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: _currentIndex == index ? (count > 8 ? 18 : 24) : (count > 8 ? 6 : 8),
+                height: count > 8 ? 6 : 8,
+                decoration: BoxDecoration(
+                  color: _currentIndex == index
+                      ? AppColors.primaryAccent
+                      : Colors.white24,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
             ),
           ),
@@ -286,6 +321,35 @@ class _HeroCarouselState extends State<HeroCarousel> {
 class _HeroCard extends ConsumerWidget {
   final StoryModel story;
   const _HeroCard({required this.story});
+
+  Future<void> _handlePlayNow(BuildContext context, WidgetRef ref) async {
+    HapticFeedback.lightImpact();
+
+    // 1. Check if user already has watch history for this story
+    final continueWatching = ref.read(continueWatchingProvider).value ?? [];
+    final existing = continueWatching.where((c) => c.story.id == story.id).firstOrNull;
+    if (existing != null) {
+      context.push('/player/${story.id}/${existing.episode.id}');
+      return;
+    }
+
+    // 2. Fetch episodes and play episode 1 directly
+    try {
+      final storyRepo = ref.read(storyRepositoryProvider);
+      final episodes = await storyRepo.getEpisodes(story.id);
+      if (context.mounted) {
+        if (episodes.isNotEmpty) {
+          context.push('/player/${story.id}/${episodes.first.id}');
+        } else {
+          context.push('/story/${story.id}');
+        }
+      }
+    } catch (_) {
+      if (context.mounted) {
+        context.push('/story/${story.id}');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -309,7 +373,9 @@ class _HeroCard extends ConsumerWidget {
             fit: StackFit.expand,
             children: [
               NetworkImageWithFallback(
-                imageUrl: story.bannerUrl ?? story.thumbnailUrl,
+                imageUrl: (story.bannerUrl != null && story.bannerUrl!.isNotEmpty)
+                    ? story.bannerUrl!
+                    : story.thumbnailUrl,
                 fit: BoxFit.cover,
               ),
               Container(
@@ -394,7 +460,7 @@ class _HeroCard extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => context.push('/story/${story.id}'),
+                            onPressed: () => _handlePlayNow(context, ref),
                             icon: const Icon(Icons.play_arrow, size: 20),
                             label: const Text('Play Now'),
                             style: ElevatedButton.styleFrom(
@@ -682,7 +748,7 @@ class AiHubCtaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/ai/generator'),
+      onTap: () => context.push('/ai'),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.all(20),
